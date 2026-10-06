@@ -1,5 +1,5 @@
 # Publica o app de treino (pasta treino/) no GitHub Pages a cada push na main.
-# Para ativar: Settings → Pages → Source: "GitHub Actions".
+# O site fica no branch gh-pages: https://dr-uil.github.io/Habit-Tracker/
 name: Deploy Treino Casal
 
 on:
@@ -9,16 +9,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,16 +31,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
+      - run: touch dist/.nojekyll
+      - uses: peaceiris/actions-gh-pages@v4
         with:
-          path: treino/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: treino/dist
+          publish_branch: gh-pages

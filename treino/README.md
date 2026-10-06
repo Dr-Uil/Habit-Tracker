@@ -43,8 +43,9 @@ npm run build:single  # um único index.html autocontido em dist-single/
 
 ## Publicar (para usar no celular)
 
-- **GitHub Pages**: o workflow `.github/workflows/deploy-treino.yml` publica a pasta `treino/`
-  a cada push na `main`. Ative em *Settings → Pages → Source: GitHub Actions*.
+- **GitHub Pages**: <https://dr-uil.github.io/Habit-Tracker/> — o workflow
+  `.github/workflows/deploy-treino.yml` reconstrói e publica no branch `gh-pages` a cada push
+  na `main` que altere `treino/`.
 - Ou suba a pasta `dist/` em qualquer hospedagem estática (Netlify, Vercel, Cloudflare Pages).
 
 No celular, abra o link e use “Adicionar à tela inicial” para instalar como app.
