@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -251,6 +251,38 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
       <div className="text-xs text-slate-400">{label}</div>
       <div className="mt-1 text-xl font-bold tabular-nums">{value}</div>
       {sub && <div className="text-xs text-slate-500">{sub}</div>}
+    </div>
+  );
+}
+
+/** Seção recolhível: título sempre visível, conteúdo ao tocar. */
+export function Collapsible({
+  title,
+  subtitle,
+  icon,
+  children,
+  defaultOpen = false,
+  className,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  icon?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={cx('rounded-2xl border border-slate-800 bg-slate-900/70', className)}>
+      <button className="flex w-full items-center gap-3 p-4 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
+        {icon && <span className="text-xl leading-none">{icon}</span>}
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{title}</span>
+          {subtitle && <span className="block text-xs text-slate-400">{subtitle}</span>}
+        </span>
+        <span className={cx('text-slate-500 transition', open && 'rotate-180')}>▾</span>
+      </button>
+      {open && <div className="border-t border-slate-800 p-4 pt-3">{children}</div>}
     </div>
   );
 }

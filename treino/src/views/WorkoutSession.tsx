@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getExercise, MUSCLE_LABEL, PATTERN_LABEL } from '../data/exercises';
+import { EXERCISES, getExercise, MUSCLE_LABEL, PATTERN_LABEL } from '../data/exercises';
 import { RIR_SCALE } from '../data/science';
 import { alternatives, CARDIO_MODE_LABEL, groupExercises, repRange, restFor } from '../logic/generator';
-import { blockInfo, exerciseHistory, suggest, type Suggestion } from '../logic/progression';
+import { bestE1rm, blockInfo, exerciseHistory, suggest, type Suggestion } from '../logic/progression';
 import { doneSets, prsInWorkout, workoutVolume } from '../logic/stats';
-import { fmtKg, uid } from '../logic/util';
+import { fmtKg, localDate, uid } from '../logic/util';
 import { useProfile } from '../store';
-import type { ActiveWorkout, Muscle, Prescription, SetLog, WorkoutLog } from '../types';
-import { Badge, Button, Card, Chip, Sheet, cx } from '../components/ui';
+import type { ActiveWorkout, Muscle, Prescription, Questionnaire, SetLog, WorkoutLog } from '../types';
+import { Badge, Button, Card, Chip, Collapsible, Sheet, cx } from '../components/ui';
 
 /* ───────────── som/vibração do fim do descanso ───────────── */
 let audioCtx: AudioContext | null = null;
@@ -63,73 +63,113 @@ const TREND_TONE: Record<Suggestion['trend'], 'accent' | 'ok' | 'warn' | 'info' 
   reps: 'default',
 };
 
+const isLight = (exerciseId: string) => {
+  const l = getExercise(exerciseId).load;
+  return l === 'peso_corporal' || l === 'elastico';
+};
+
+/** Prescrição para um exercício adicionado livremente (treino avulso). */
+export function freePrescription(exerciseId: string, q: Questionnaire): Prescription {
+  const ex = getExercise(exerciseId);
+  const role = ex.kind === 'compound' ? 'secondary' : 'accessory';
+  const [repMin, repMax] = repRange(ex, role, q);
+  return { key: uid(), exerciseId, pattern: ex.pattern, role, sets: 3, repMin, repMax, restSec: restFor(ex, role, q) };
+}
+
 export function WorkoutSession() {
   const { profile, update } = useProfile();
   const aw = profile.activeWorkout!;
-  const session = profile.program.sessions.find((s) => s.id === aw.sessionId);
+  const session = aw.free ? undefined : profile.program.sessions.find((s) => s.id === aw.sessionId);
+  const title = session?.name ?? (aw.retro ? 'Registrar treino feito' : 'Treino avulso');
   const info = blockInfo(profile);
   const targetRir = aw.deload ? 4 : info.targetRir;
   const [infoEx, setInfoEx] = useState<string | null>(null);
   const [swapIdx, setSwapIdx] = useState<number | null>(null);
+  const [adding, setAdding] = useState(aw.free === true && aw.exercises.length === 0);
   const [finishing, setFinishing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const now = useNow(1000);
 
   const setAw = (fn: (a: ActiveWorkout) => ActiveWorkout) => update((p) => (p.activeWorkout ? { ...p, activeWorkout: fn(p.activeWorkout) } : p));
-
-  const updateSet = (ei: number, si: number, patch: Partial<SetLog>) =>
-    setAw((a) => ({
-      ...a,
-      exercises: a.exercises.map((e, i) => (i !== ei ? e : { ...e, sets: e.sets.map((st, j) => (j !== si ? st : { ...st, ...patch })) })),
-    }));
+  const setExercise = (ei: number, fn: (e: ActiveWorkout['exercises'][number]) => ActiveWorkout['exercises'][number]) =>
+    setAw((a) => ({ ...a, exercises: a.exercises.map((e, i) => (i === ei ? fn(e) : e)) }));
 
   const suggestions = useMemo(
     () => aw.exercises.map((e) => suggest(e.prescription, profile.workouts, aw.deload, targetRir)),
     [aw.exercises, profile.workouts, aw.deload, targetRir],
   );
 
-  const completeSet = (ei: number, si: number) => {
+  const startRest = (a: ActiveWorkout, ei: number, last: boolean): ActiveWorkout => {
+    if (a.retro) return a;
+    const pr = a.exercises[ei].prescription;
+    let rest = pr.restSec;
+    if (pr.superset && !last) {
+      const next = a.exercises[ei + 1];
+      if (next && next.prescription.superset === pr.superset) rest = 15;
+    }
+    return { ...a, restEndsAt: Date.now() + rest * 1000, restTotal: rest };
+  };
+
+  /** Preenche peso/reps vazios com a sugestão (ou com a série anterior). */
+  const fillSet = (ei: number, si: number, sets: SetLog[]): SetLog => {
+    const st = sets[si];
+    const sug = suggestions[ei];
+    const prevW = si > 0 ? sets[si - 1].weight : null;
+    return {
+      ...st,
+      weight: st.weight ?? prevW ?? sug.weight ?? (isLight(aw.exercises[ei].exerciseId) ? 0 : null),
+      reps: st.reps ?? sug.repsTarget[si] ?? aw.exercises[ei].prescription.repMin,
+    };
+  };
+
+  const toggleSet = (ei: number, si: number) => {
     unlockAudio();
     const e = aw.exercises[ei];
-    const st = e.sets[si];
-    if (st.done) {
-      updateSet(ei, si, { done: false });
+    if (e.sets[si].done) {
+      setExercise(ei, (ex) => ({ ...ex, sets: ex.sets.map((s, j) => (j === si ? { ...s, done: false } : s)) }));
       return;
     }
-    const target = suggestions[ei].repsTarget[si] ?? e.prescription.repMin;
-    // propaga a carga para as séries seguintes ainda vazias
     setAw((a) => {
-      const exs = a.exercises.map((ex, i) => {
-        if (i !== ei) return ex;
-        const sets = ex.sets.map((s, j) => {
-          if (j === si) return { ...s, done: true, reps: s.reps ?? target };
-          if (j > si && !s.done && s.weight == null && st.weight != null) return { ...s, weight: st.weight };
-          return s;
-        });
-        return { ...ex, sets };
+      const ex = a.exercises[ei];
+      const filled = fillSet(ei, si, ex.sets);
+      const sets = ex.sets.map((s, j) => {
+        if (j === si) return { ...filled, done: true };
+        // propaga a carga para as séries seguintes ainda vazias
+        if (j > si && !s.done && s.weight == null && filled.weight != null) return { ...s, weight: filled.weight };
+        return s;
       });
-      // descanso: em bi-set, só uma transição curta entre o 1º e o 2º exercício
-      const pr = e.prescription;
-      let rest = pr.restSec;
-      if (pr.superset) {
-        const next = a.exercises[ei + 1];
-        if (next && next.prescription.superset === pr.superset) rest = 15;
-      }
-      return { ...a, exercises: exs, restEndsAt: Date.now() + rest * 1000, restTotal: rest };
+      const next = { ...a, exercises: a.exercises.map((x, i) => (i === ei ? { ...x, sets } : x)) };
+      return startRest(next, ei, false);
     });
   };
 
+  const completeExercise = (ei: number) => {
+    unlockAudio();
+    setAw((a) => {
+      const ex = a.exercises[ei];
+      const sets: SetLog[] = [];
+      ex.sets.forEach((s, j) => sets.push(s.done ? s : { ...fillSet(ei, j, [...sets, ...ex.sets.slice(j)]), done: true }));
+      const next = { ...a, exercises: a.exercises.map((x, i) => (i === ei ? { ...x, sets } : x)) };
+      return startRest(next, ei, true);
+    });
+  };
+
+  const updateSet = (ei: number, si: number, patch: Partial<SetLog>) =>
+    setExercise(ei, (e) => ({ ...e, sets: e.sets.map((st, j) => (j !== si ? st : { ...st, ...patch })) }));
   const addSet = (ei: number) =>
+    setExercise(ei, (e) => ({ ...e, sets: [...e.sets, { weight: e.sets[e.sets.length - 1]?.weight ?? null, reps: null, rir: null, done: false }] }));
+  const removeSet = (ei: number) => setExercise(ei, (e) => (e.sets.length <= 1 ? e : { ...e, sets: e.sets.slice(0, -1) }));
+  const removeExercise = (ei: number) => setAw((a) => ({ ...a, exercises: a.exercises.filter((_, i) => i !== ei) }));
+
+  const addExercise = (exerciseId: string) => {
+    const pr = freePrescription(exerciseId, profile.questionnaire);
+    const sug = suggest(pr, profile.workouts, false, targetRir);
     setAw((a) => ({
       ...a,
-      exercises: a.exercises.map((e, i) => {
-        if (i !== ei) return e;
-        const lastSet = e.sets[e.sets.length - 1];
-        return { ...e, sets: [...e.sets, { weight: lastSet?.weight ?? null, reps: null, rir: null, done: false }] };
-      }),
+      exercises: [...a.exercises, { key: pr.key, exerciseId, prescription: pr, sets: Array.from({ length: 3 }, () => ({ weight: sug.weight, reps: null, rir: null, done: false })) }],
     }));
-  const removeSet = (ei: number) =>
-    setAw((a) => ({ ...a, exercises: a.exercises.map((e, i) => (i !== ei || e.sets.length <= 1 ? e : { ...e, sets: e.sets.slice(0, -1) })) }));
+    setAdding(false);
+  };
 
   const swap = (ei: number, newId: string, permanent: boolean) => {
     const ex = getExercise(newId);
@@ -143,7 +183,7 @@ export function WorkoutSession() {
         i !== ei ? e : { ...e, exerciseId: newId, prescription: newPr, sets: e.sets.map((s) => (s.done ? s : { ...s, weight: sug.weight })) },
       );
       let program = p.program;
-      if (permanent) {
+      if (permanent && !a.free) {
         program = {
           ...program,
           sessions: program.sessions.map((s) =>
@@ -167,9 +207,10 @@ export function WorkoutSession() {
       <header className="safe-top sticky top-0 z-20 -mx-4 border-b border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate font-semibold">{session?.name ?? 'Treino'}</div>
+            <div className="truncate font-semibold">{title}</div>
             <div className="text-xs text-slate-400">
-              ⏱ {elapsedMin} min · {completed}/{totalSets} séries · {aw.deload ? 'Deload' : `RIR ${targetRir}`}
+              {!aw.retro && `⏱ ${elapsedMin} min · `}
+              {completed}/{totalSets} séries{!aw.free && ` · ${aw.deload ? 'Deload' : `RIR ${targetRir}`}`}
             </div>
           </div>
           <div className="flex gap-2">
@@ -186,123 +227,49 @@ export function WorkoutSession() {
         </div>
       </header>
 
-      <Card className="mt-4 text-sm text-slate-300">
-        🔥 <b>Aquecimento (5 min):</b> 3–5 min de cardio leve + mobilidade. No 1º exercício, faça 2 séries de aproximação (~50% e ~75% da carga com poucas repetições) antes das séries válidas.
-      </Card>
+      {aw.retro ? (
+        <Card className="mt-4 text-sm text-slate-300">
+          📝 Adicione os exercícios que você fez, preencha <b>peso</b> e <b>repetições</b> de cada série e toque em <b>✓</b>. Na hora de finalizar você escolhe a data.
+        </Card>
+      ) : (
+        <Collapsible className="mt-4" icon="🔥" title="Aquecimento (5 min)">
+          <p className="text-sm text-slate-300">3–5 min de cardio leve + mobilidade. No 1º exercício, faça 2 séries de aproximação (~50% e ~75% da carga, poucas repetições) antes das séries válidas.</p>
+        </Collapsible>
+      )}
 
       {groups.map((g) => (
         <div key={g[0].key} className={cx('mt-4', g.length > 1 && 'rounded-3xl border border-dashed border-accent/40 p-2')}>
-          {g.length > 1 && <div className="px-2 pb-2 pt-1 text-xs font-semibold text-accent">BI-SET {g[0].superset} — alterne os exercícios, descanse após o par</div>}
+          {g.length > 1 && <div className="px-2 pb-2 pt-1 text-xs font-semibold text-accent">BI-SET {g[0].superset} — alterne os dois, descanse depois do par</div>}
           <div className="space-y-3">
             {g.map((_, gi) => {
               const ei = flatIndex++;
-              const e = aw.exercises[ei];
-              const ex = getExercise(e.exerciseId);
-              const pr = e.prescription;
-              const sug = suggestions[ei];
-              const hist = exerciseHistory(profile.workouts, e.exerciseId)[0];
-              const allDone = e.sets.every((s) => s.done);
               return (
-                <Card key={e.key} className={cx(allDone && 'opacity-70')}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {g.length > 1 && <Badge tone="accent">{`${pr.superset}${gi + 1}`}</Badge>}
-                        <h3 className="font-semibold leading-tight">{ex.name}</h3>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-400">
-                        {e.sets.length} × {pr.repMin}–{pr.repMax} reps · RIR {targetRir} · descanso {fmtClock(pr.restSec)}
-                        {ex.unilateral && ' · cada lado'}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button onClick={() => setInfoEx(e.exerciseId)} className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs" aria-label="Como fazer">
-                        ℹ️
-                      </button>
-                      <button onClick={() => setSwapIdx(ei)} className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs" aria-label="Trocar exercício">
-                        🔄
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-xl bg-slate-950/60 p-2.5 text-xs leading-relaxed text-slate-300">
-                    <Badge tone={TREND_TONE[sug.trend]}>
-                      {{ primeira: '1ª vez', subir: '↑ subir carga', manter: '→ manter', reduzir: '↓ reduzir', deload: 'deload', reps: '+ reps' }[sug.trend]}
-                    </Badge>{' '}
-                    {sug.message}
-                    {hist && (
-                      <div className="mt-1 text-slate-500">
-                        Última vez: {hist.sets.map((s) => `${fmtKg(s.weight)}kg×${s.reps}`).join(' · ')}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-[1.5rem_1fr_1fr_3.2rem_2.75rem] items-center gap-2 text-[11px] uppercase tracking-wide text-slate-500">
-                    <span>#</span>
-                    <span>{ex.load === 'halter' ? 'kg (cada)' : 'kg'}</span>
-                    <span>reps</span>
-                    <span>RIR</span>
-                    <span />
-                  </div>
-                  <div className="mt-1 space-y-2">
-                    {e.sets.map((st, si) => (
-                      <div key={si} className="grid grid-cols-[1.5rem_1fr_1fr_3.2rem_2.75rem] items-center gap-2">
-                        <span className="text-sm text-slate-500">{si + 1}</span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={st.weight ?? ''}
-                          placeholder={sug.weight != null ? String(sug.weight) : '—'}
-                          onChange={(ev) => updateSet(ei, si, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
-                          className={cx('w-full rounded-lg border bg-slate-950 px-2 py-2.5 text-center text-base tabular-nums outline-none focus:border-accent', st.done ? 'border-accent/40' : 'border-slate-700')}
-                        />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={st.reps ?? ''}
-                          placeholder={String(sug.repsTarget[si] ?? pr.repMin)}
-                          onChange={(ev) => updateSet(ei, si, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
-                          className={cx('w-full rounded-lg border bg-slate-950 px-2 py-2.5 text-center text-base tabular-nums outline-none focus:border-accent', st.done ? 'border-accent/40' : 'border-slate-700')}
-                        />
-                        <select
-                          value={st.rir ?? ''}
-                          onChange={(ev) => updateSet(ei, si, { rir: ev.target.value === '' ? null : Number(ev.target.value) })}
-                          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-1 py-2.5 text-center text-sm outline-none"
-                          aria-label="Repetições na reserva"
-                        >
-                          <option value="">–</option>
-                          {[0, 1, 2, 3, 4].map((r) => (
-                            <option key={r} value={r}>
-                              {r === 4 ? '4+' : r}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => completeSet(ei, si)}
-                          className={cx('h-11 rounded-lg text-lg font-bold transition', st.done ? 'bg-accent text-slate-950' : 'bg-slate-800 text-slate-400')}
-                          aria-label="Concluir série"
-                        >
-                          ✓
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex gap-2 text-xs">
-                    <button onClick={() => addSet(ei)} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-800">
-                      + série
-                    </button>
-                    {e.sets.length > 1 && (
-                      <button onClick={() => removeSet(ei)} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-800">
-                        − série
-                      </button>
-                    )}
-                  </div>
-                </Card>
+                <ExerciseCard
+                  key={aw.exercises[ei].key}
+                  aw={aw}
+                  ei={ei}
+                  label={g.length > 1 ? `${g[0].superset}${gi + 1}` : undefined}
+                  sug={suggestions[ei]}
+                  targetRir={targetRir}
+                  onToggleSet={(si) => toggleSet(ei, si)}
+                  onUpdateSet={(si, patch) => updateSet(ei, si, patch)}
+                  onAddSet={() => addSet(ei)}
+                  onRemoveSet={() => removeSet(ei)}
+                  onComplete={() => completeExercise(ei)}
+                  onInfo={() => setInfoEx(aw.exercises[ei].exerciseId)}
+                  onSwap={() => setSwapIdx(ei)}
+                />
               );
             })}
           </div>
         </div>
       ))}
+
+      <div className="mt-4">
+        <Button variant="secondary" full onClick={() => setAdding(true)}>
+          ➕ Adicionar exercício
+        </Button>
+      </div>
 
       {session?.finisher && (
         <Card className="mt-4">
@@ -349,21 +316,35 @@ export function WorkoutSession() {
                   <Button variant="secondary" className="flex-1 py-2" onClick={() => swap(swapIdx, alt.id, false)}>
                     Só hoje
                   </Button>
-                  <Button className="flex-1 py-2" onClick={() => swap(swapIdx, alt.id, true)}>
-                    Trocar no plano
-                  </Button>
+                  {!aw.free && (
+                    <Button className="flex-1 py-2" onClick={() => swap(swapIdx, alt.id, true)}>
+                      Trocar no plano
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
+            <Button
+              variant="danger"
+              full
+              onClick={() => {
+                removeExercise(swapIdx);
+                setSwapIdx(null);
+              }}
+            >
+              Tirar este exercício do treino de hoje
+            </Button>
           </div>
         )}
       </Sheet>
+
+      {adding && <AddExerciseSheet onClose={() => setAdding(false)} onPick={addExercise} />}
 
       <Sheet open={confirmCancel} onClose={() => setConfirmCancel(false)} title="Descartar treino?">
         <p className="text-sm text-slate-400">As séries registradas neste treino serão perdidas.</p>
         <div className="mt-4 flex gap-2">
           <Button variant="secondary" full onClick={() => setConfirmCancel(false)}>
-            Continuar treinando
+            Continuar
           </Button>
           <Button variant="danger" full onClick={() => update((p) => ({ ...p, activeWorkout: undefined }))}>
             Descartar
@@ -371,10 +352,249 @@ export function WorkoutSession() {
         </div>
       </Sheet>
 
-      {finishing && <FinishSheet onClose={() => setFinishing(false)} />}
+      {finishing && <FinishSheet onClose={() => setFinishing(false)} title={title} />}
     </div>
   );
 }
+
+/* ───────────── Cartão de exercício ───────────── */
+
+function ExerciseCard({
+  aw,
+  ei,
+  label,
+  sug,
+  targetRir,
+  onToggleSet,
+  onUpdateSet,
+  onAddSet,
+  onRemoveSet,
+  onComplete,
+  onInfo,
+  onSwap,
+}: {
+  aw: ActiveWorkout;
+  ei: number;
+  label?: string;
+  sug: Suggestion;
+  targetRir: number;
+  onToggleSet: (si: number) => void;
+  onUpdateSet: (si: number, patch: Partial<SetLog>) => void;
+  onAddSet: () => void;
+  onRemoveSet: () => void;
+  onComplete: () => void;
+  onInfo: () => void;
+  onSwap: () => void;
+}) {
+  const { profile } = useProfile();
+  const e = aw.exercises[ei];
+  const ex = getExercise(e.exerciseId);
+  const pr = e.prescription;
+  const allDone = e.sets.length > 0 && e.sets.every((s) => s.done);
+  const [editing, setEditing] = useState(false);
+  const [why, setWhy] = useState(false);
+  const hist = exerciseHistory(profile.workouts, e.exerciseId)[0];
+
+  // comparação com a última vez (1RM estimado)
+  const nowBest = bestE1rm(e.sets);
+  const prevBest = hist ? Math.max(...hist.sets.map((s) => s.weight * (1 + Math.min(s.reps, 15) / 30))) : 0;
+  const allTimeBest = Math.max(
+    0,
+    ...profile.workouts.flatMap((w) => w.exercises.filter((x) => x.exerciseId === e.exerciseId).map((x) => bestE1rm(x.sets))),
+  );
+
+  if (allDone && !editing) {
+    const diff = nowBest - prevBest;
+    return (
+      <Card className="border-accent/30 bg-accent/5" onClick={() => setEditing(true)}>
+        <div className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent font-bold text-slate-950">✓</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold leading-tight">{ex.name}</div>
+            <div className="mt-1 text-sm tabular-nums text-slate-300">
+              {e.sets.map((s) => (isLight(e.exerciseId) && !s.weight ? `${s.reps}` : `${fmtKg(s.weight ?? 0)}kg×${s.reps}`)).join(' · ')}
+            </div>
+            <div className="mt-1 text-xs">
+              {prevBest === 0 ? (
+                <span className="text-sky-300">Primeiro registro — base para as próximas sugestões</span>
+              ) : nowBest > allTimeBest + 0.01 ? (
+                <span className="text-accent">🏆 Recorde pessoal! (+{fmtKg(Math.round(diff * 10) / 10)} kg no 1RM estimado)</span>
+              ) : diff > 0.01 ? (
+                <span className="text-emerald-300">↑ Mais forte que a última vez (+{fmtKg(Math.round(diff * 10) / 10)} kg no 1RM estimado)</span>
+              ) : diff < -0.01 ? (
+                <span className="text-slate-400">Um pouco abaixo da última vez — normal em dias cansados</span>
+              ) : (
+                <span className="text-slate-400">Igual à última vez</span>
+              )}
+            </div>
+          </div>
+          <span className="text-xs text-slate-500">editar</span>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {label && <Badge tone="accent">{label}</Badge>}
+            <h3 className="font-semibold leading-tight">{ex.name}</h3>
+          </div>
+          <div className="mt-1 text-xs text-slate-400">
+            {e.sets.length} séries de {pr.repMin}–{pr.repMax} reps{!aw.free && ` · sobrar ${targetRir}`}
+            {!aw.retro && ` · descanso ${fmtClock(pr.restSec)}`}
+            {ex.unilateral && ' · cada lado'}
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button onClick={onInfo} className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs" aria-label="Como fazer">
+            ℹ️
+          </button>
+          <button onClick={onSwap} className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs" aria-label="Trocar exercício">
+            🔄
+          </button>
+        </div>
+      </div>
+
+      <button onClick={() => setWhy(!why)} className="mt-3 w-full rounded-xl bg-slate-950/60 p-2.5 text-left text-xs text-slate-300">
+        <span className="flex items-center gap-2">
+          <Badge tone={TREND_TONE[sug.trend]}>{{ primeira: '1ª vez', subir: '↑ subir', manter: '→ manter', reduzir: '↓ reduzir', deload: 'deload', reps: '+ reps' }[sug.trend]}</Badge>
+          <span className="flex-1">{sug.short}</span>
+          <span className="text-slate-500">{why ? '▴' : 'ⓘ'}</span>
+        </span>
+        {why && (
+          <span className="mt-2 block leading-relaxed">
+            {sug.message}
+            {hist && <span className="mt-1 block text-slate-500">Última vez: {hist.sets.map((s) => `${fmtKg(s.weight)}kg×${s.reps}`).join(' · ')}</span>}
+          </span>
+        )}
+      </button>
+
+      <div className="mt-3 grid grid-cols-[1.5rem_1fr_1fr_3.2rem_2.75rem] items-center gap-2 text-[11px] text-slate-500">
+        <span>Série</span>
+        <span className="text-center">Peso (kg){ex.load === 'halter' ? ' cada' : ''}</span>
+        <span className="text-center">Repetições</span>
+        <span className="text-center">Sobrou</span>
+        <span className="text-center">Feito</span>
+      </div>
+      <div className="mt-1 space-y-2">
+        {e.sets.map((st, si) => (
+          <div key={si} className="grid grid-cols-[1.5rem_1fr_1fr_3.2rem_2.75rem] items-center gap-2">
+            <span className="text-center text-sm text-slate-500">{si + 1}</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={st.weight ?? ''}
+              placeholder={sug.weight != null ? String(sug.weight) : 'kg'}
+              onChange={(ev) => onUpdateSet(si, { weight: ev.target.value === '' ? null : Number(ev.target.value) })}
+              className={cx('w-full rounded-lg border bg-slate-950 px-2 py-2.5 text-center text-base tabular-nums outline-none focus:border-accent', st.done ? 'border-accent/50' : 'border-slate-700')}
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              value={st.reps ?? ''}
+              placeholder={String(sug.repsTarget[si] ?? pr.repMin)}
+              onChange={(ev) => onUpdateSet(si, { reps: ev.target.value === '' ? null : Number(ev.target.value) })}
+              className={cx('w-full rounded-lg border bg-slate-950 px-2 py-2.5 text-center text-base tabular-nums outline-none focus:border-accent', st.done ? 'border-accent/50' : 'border-slate-700')}
+            />
+            <select
+              value={st.rir ?? ''}
+              onChange={(ev) => onUpdateSet(si, { rir: ev.target.value === '' ? null : Number(ev.target.value) })}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-1 py-2.5 text-center text-sm outline-none"
+              aria-label="Repetições que ainda sobrariam"
+            >
+              <option value="">–</option>
+              {[0, 1, 2, 3, 4].map((r) => (
+                <option key={r} value={r}>
+                  {r === 4 ? '4+' : r}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => onToggleSet(si)}
+              className={cx('h-11 rounded-lg text-lg font-bold transition', st.done ? 'bg-accent text-slate-950' : 'bg-slate-800 text-slate-400')}
+              aria-label="Concluir série"
+            >
+              ✓
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button onClick={onAddSet} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-800">
+          + série
+        </button>
+        {e.sets.length > 1 && (
+          <button onClick={onRemoveSet} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-800">
+            − série
+          </button>
+        )}
+        <div className="flex-1" />
+        {allDone ? (
+          <Button variant="secondary" className="py-2" onClick={() => setEditing(false)}>
+            OK
+          </Button>
+        ) : (
+          <Button
+            className="py-2"
+            onClick={() => {
+              onComplete();
+              setEditing(false);
+            }}
+          >
+            ✓ Concluir exercício
+          </Button>
+        )}
+      </div>
+      {ei === 0 && <p className="mt-2 text-[11px] leading-snug text-slate-500">Digite o peso e as repetições que você realmente fez. Campos vazios usam o valor sugerido (em cinza).</p>}
+    </Card>
+  );
+}
+
+/* ───────────── Adicionar exercício (busca) ───────────── */
+
+function AddExerciseSheet({ onClose, onPick }: { onClose: () => void; onPick: (id: string) => void }) {
+  const [term, setTerm] = useState('');
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const t = norm(term.trim());
+  const list = EXERCISES.filter((e) => !t || norm(`${e.name} ${PATTERN_LABEL[e.pattern]} ${Object.keys(e.muscles).join(' ')}`).includes(t));
+  const byGroup = new Map<string, typeof list>();
+  for (const e of list) {
+    const main = (Object.entries(e.muscles) as [Muscle, number][]).find(([, w]) => w >= 1)?.[0] ?? 'abdomen';
+    const k = MUSCLE_LABEL[main];
+    byGroup.set(k, [...(byGroup.get(k) ?? []), e]);
+  }
+  return (
+    <Sheet open onClose={onClose} title="Adicionar exercício">
+      <input
+        autoFocus
+        value={term}
+        onChange={(e) => setTerm(e.target.value)}
+        placeholder="Buscar: supino, tríceps, ombro…"
+        className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-accent"
+      />
+      {list.length === 0 && <p className="text-sm text-slate-400">Nada encontrado. Tente outro nome (ex.: “crucifixo”, “remada”).</p>}
+      <div className="space-y-4">
+        {[...byGroup.entries()].map(([group, items]) => (
+          <div key={group}>
+            <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">{group}</div>
+            <div className="space-y-1">
+              {items.map((e) => (
+                <button key={e.id} onClick={() => onPick(e.id)} className="w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-slate-800 active:bg-slate-800">
+                  {e.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Sheet>
+  );
+}
+
+/* ───────────── Cronômetro ───────────── */
 
 function RestTimer({ aw, setAw }: { aw: ActiveWorkout; setAw: (fn: (a: ActiveWorkout) => ActiveWorkout) => void }) {
   const now = useNow(250);
@@ -453,8 +673,7 @@ export function ExerciseInfo({ id }: { id: string }) {
           <li>Controle a descida (~2–3 s) e suba com intenção, sem perder a técnica.</li>
         </ul>
       </div>
-      <div>
-        <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">Escala RIR (repetições na reserva)</div>
+      <Collapsible title="O que é “sobrou” (RIR)?" className="bg-slate-950/50">
         <div className="space-y-1">
           {RIR_SCALE.map((r) => (
             <div key={r.rir} className="flex gap-2 text-slate-300">
@@ -463,42 +682,76 @@ export function ExerciseInfo({ id }: { id: string }) {
             </div>
           ))}
         </div>
-      </div>
+      </Collapsible>
     </div>
   );
 }
 
-function FinishSheet({ onClose }: { onClose: () => void }) {
+/* ───────────── Finalizar ───────────── */
+
+function FinishSheet({ onClose, title }: { onClose: () => void; title: string }) {
   const { profile, update } = useProfile();
   const aw = profile.activeWorkout!;
   const [rpe, setRpe] = useState<number | undefined>();
   const [notes, setNotes] = useState('');
-  const session = profile.program.sessions.find((s) => s.id === aw.sessionId);
+  const today = localDate();
+  const [date, setDate] = useState(today);
+  const [retroMinutes, setRetroMinutes] = useState(60);
   const volume = workoutVolume(aw);
   const sets = doneSets(aw);
   const prs = prsInWorkout(profile.workouts, aw);
-  const minutes = Math.round((Date.now() - new Date(aw.startedAt).getTime()) / 60000);
+  const minutes = aw.retro ? retroMinutes : Math.round((Date.now() - new Date(aw.startedAt).getTime()) / 60000);
 
   const save = () => {
+    const finished = date === today ? new Date() : new Date(`${date}T19:00:00`);
+    const started = new Date(finished.getTime() - minutes * 60000);
     const log: WorkoutLog = {
       id: uid(),
       programId: aw.programId,
+      free: aw.free || undefined,
       sessionId: aw.sessionId,
-      sessionName: session?.name ?? 'Treino',
-      startedAt: aw.startedAt,
-      finishedAt: new Date().toISOString(),
+      sessionName: title === 'Registrar treino feito' ? 'Treino avulso' : title,
+      startedAt: aw.retro ? started.toISOString() : aw.startedAt,
+      finishedAt: finished.toISOString(),
       blockWeek: aw.blockWeek,
       deload: aw.deload,
-      exercises: aw.exercises.map(({ key, exerciseId, sets }) => ({ key, exerciseId, sets })),
+      exercises: aw.exercises.map(({ key, exerciseId, sets }) => ({ key, exerciseId, sets })).filter((e) => e.sets.some((s) => s.done)),
       cardioDone: aw.cardioDone,
       rpe,
       notes: notes.trim() || undefined,
     };
-    update((p) => ({ ...p, workouts: [...p.workouts, log], activeWorkout: undefined }));
+    // mantém o histórico em ordem cronológica (registros de dias anteriores)
+    update((p) => ({ ...p, workouts: [...p.workouts, log].sort((x, y) => x.finishedAt.localeCompare(y.finishedAt)), activeWorkout: undefined }));
   };
 
   return (
     <Sheet open onClose={onClose} title="Finalizar treino">
+      {(aw.retro || aw.free) && (
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="mb-1 block text-sm text-slate-400">Data do treino</span>
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => setDate(e.target.value || today)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-accent"
+            />
+          </label>
+          {aw.retro && (
+            <label className="block">
+              <span className="mb-1 block text-sm text-slate-400">Duração (min)</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={retroMinutes}
+                onChange={(e) => setRetroMinutes(Number(e.target.value) || 0)}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 outline-none focus:border-accent"
+              />
+            </label>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-slate-950 p-3">
           <div className="text-xl font-bold">{minutes}</div>
@@ -515,10 +768,10 @@ function FinishSheet({ onClose }: { onClose: () => void }) {
       </div>
       {prs.length > 0 && (
         <div className="mt-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm">
-          🏆 <b>Recorde pessoal</b> (1RM estimado) em: {prs.map((id) => getExercise(id).name).join(', ')}
+          🏆 <b>Recorde pessoal</b> em: {prs.map((id) => getExercise(id).name).join(', ')}
         </div>
       )}
-      {sets === 0 && <p className="mt-3 text-sm text-amber-300">Nenhuma série marcada como concluída (✓).</p>}
+      {sets === 0 && <p className="mt-3 text-sm text-amber-300">Nenhuma série marcada como feita (✓). Toque em “✓ Concluir exercício” em cada exercício que você fez.</p>}
       <div className="mt-4">
         <div className="mb-2 text-sm text-slate-400">Quão puxado foi o treino? (0–10)</div>
         <div className="flex flex-wrap gap-1.5">
@@ -534,7 +787,7 @@ function FinishSheet({ onClose }: { onClose: () => void }) {
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Anotações (opcional): dores, sono, energia…"
         className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm outline-none focus:border-accent"
-        rows={3}
+        rows={2}
       />
       <div className="mt-4 flex gap-2">
         <Button variant="secondary" onClick={onClose}>

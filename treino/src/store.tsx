@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AppData, Profile } from './types';
+import { refreshProgram } from './logic/generator';
 
 const KEY = 'treino-casal-v1';
 
@@ -13,10 +14,15 @@ export function loadData(): AppData {
     if (!raw) return emptyData();
     const parsed = JSON.parse(raw) as AppData;
     if (!parsed || !Array.isArray(parsed.profiles)) return emptyData();
-    return parsed;
+    return migrate(parsed);
   } catch {
     return emptyData();
   }
+}
+
+/** Atualiza planos gerados por versões antigas do app, mantendo histórico e bloco. */
+export function migrate(d: AppData): AppData {
+  return { ...d, profiles: d.profiles.map((p) => ({ ...p, program: refreshProgram(p.questionnaire, p.program) })) };
 }
 
 function saveData(d: AppData): boolean {
@@ -77,7 +83,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (profiles: Profile[]) =>
       setData((d) => {
         const map = new Map(d.profiles.map((p) => [p.id, p]));
-        for (const p of profiles) map.set(p.id, p);
+        for (const p of migrate({ version: 1, profiles }).profiles) map.set(p.id, p);
         return { ...d, profiles: [...map.values()] };
       }),
     [],

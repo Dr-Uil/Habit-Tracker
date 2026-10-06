@@ -110,3 +110,18 @@ export function weeklySetsHistory(p: Profile, weeks = 8): { week: Date; sets: nu
   }
   return out;
 }
+
+/** Treino avulso (fora da sequência). `retro` = registro de um treino já feito. */
+export function buildFreeWorkout(p: Profile, retro: boolean): ActiveWorkout {
+  const info = blockInfo(p);
+  return {
+    programId: 'avulso',
+    sessionId: 'avulso',
+    free: true,
+    retro: retro || undefined,
+    startedAt: new Date().toISOString(),
+    blockWeek: info.week,
+    deload: false,
+    exercises: [],
+  };
+}

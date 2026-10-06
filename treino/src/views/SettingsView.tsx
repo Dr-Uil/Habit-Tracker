@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { generateProgram } from '../logic/generator';
+import { generateProgram, reassignSupersets } from '../logic/generator';
 import { fmtDate, localDate } from '../logic/util';
 import { isValidBackup, useProfile, useStore } from '../store';
 import type { AppData } from '../types';
-import { Button, Card, SectionTitle, Sheet } from '../components/ui';
+import { Button, Card, OptionCard, SectionTitle, Sheet } from '../components/ui';
 
 export function downloadJson(filename: string, obj: unknown) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
@@ -86,6 +86,17 @@ export function SettingsView({ onEdit }: { onEdit: () => void }) {
           <Button variant="secondary" full onClick={() => setConfirmVariant(true)}>
             🔀 Variar exercícios (mesma estrutura)
           </Button>
+          <OptionCard
+            icon={profile.questionnaire.supersets ? '✅' : '⬜'}
+            title="Bi-sets (alternar 2 exercícios)"
+            desc="Economiza tempo. O app só junta exercícios da mesma área e nunca duas máquinas. Desligue se a academia estiver cheia."
+            onClick={() =>
+              update((p) => {
+                const q = { ...p.questionnaire, supersets: !p.questionnaire.supersets };
+                return { ...p, questionnaire: q, program: reassignSupersets(q, p.program) };
+              })
+            }
+          />
           <p className="px-1 text-xs text-slate-500">O histórico de cargas é sempre mantido. Um novo plano recomeça na semana 1 do bloco. Variar exercícios a cada 1–2 blocos ajuda a motivação e distribui o estímulo.</p>
         </div>
       </div>

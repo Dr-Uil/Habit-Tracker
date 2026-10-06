@@ -436,6 +436,28 @@ export const EXERCISES: Exercise[] = [
     cues: ['Elástico preso embaixo, puxado por trás da cabeça', 'Cotovelos para cima', 'Estenda totalmente'],
   },
 
+  // ───────────── Extras (úteis para registrar treinos livres) ─────────────
+  {
+    id: 'mergulho_paralelas', name: 'Paralelas / mergulho (livre ou graviton)', pattern: 'h_push', kind: 'compound', load: 'peso_corporal', skill: 2, gymOnly: true,
+    muscles: { peito: 1, triceps: 1, ombros: 0.5 }, avoid: ['ombro'],
+    cues: ['Tronco levemente inclinado à frente = mais peito', 'Desça até ~90° de cotovelo', 'Use o graviton se não fizer 6+'],
+  },
+  {
+    id: 'desenvolvimento_arnold', name: 'Desenvolvimento Arnold (halteres)', pattern: 'v_push', kind: 'compound', load: 'halter', skill: 2,
+    muscles: { ombros: 1, triceps: 0.5 }, avoid: ['ombro'],
+    cues: ['Começa com palmas para você', 'Gire as mãos enquanto sobe', 'Controle a descida'],
+  },
+  {
+    id: 'elevacao_frontal', name: 'Elevação frontal (halter, anilha ou cabo)', pattern: 'front_raise', kind: 'isolation', load: 'halter', skill: 1,
+    muscles: { ombros: 1 },
+    cues: ['Suba até a altura dos ombros', 'Sem balançar o tronco', 'O deltoide anterior já trabalha muito nos supinos — use pouco volume'],
+  },
+  {
+    id: 'triceps_coice', name: 'Tríceps coice (halter ou cabo)', pattern: 'triceps', kind: 'isolation', load: 'halter', skill: 1,
+    muscles: { triceps: 1 },
+    cues: ['Tronco inclinado, braço colado ao corpo', 'Estenda totalmente o cotovelo', 'Carga leve, segure 1 s'],
+  },
+
   // ───────────── Core ─────────────
   {
     id: 'abdominal_cabo', name: 'Abdominal ajoelhado no cabo', pattern: 'core', kind: 'isolation', load: 'cabo', skill: 1,
@@ -499,6 +521,7 @@ export const PATTERN_LABEL: Record<Pattern, string> = {
   h_pull: 'Remada',
   v_pull: 'Puxada vertical',
   lateral_raise: 'Elevação lateral',
+  front_raise: 'Elevação frontal',
   rear_delt: 'Deltoide posterior',
   biceps: 'Bíceps',
   triceps: 'Tríceps',

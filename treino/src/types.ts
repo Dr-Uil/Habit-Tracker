@@ -35,6 +35,7 @@ export type Pattern =
   | 'h_pull'
   | 'v_pull'
   | 'lateral_raise'
+  | 'front_raise'
   | 'rear_delt'
   | 'biceps'
   | 'triceps'
@@ -123,6 +124,7 @@ export interface Session {
 export interface Program {
   id: string;
   createdAt: string;
+  genVersion?: number;
   variant?: number;
   splitName: string;
   splitWhy: string;
@@ -153,6 +155,7 @@ export interface ExerciseLog {
 export interface WorkoutLog {
   id: string;
   programId: string;
+  free?: boolean;
   sessionId: string;
   sessionName: string;
   startedAt: string;
@@ -168,6 +171,10 @@ export interface WorkoutLog {
 export interface ActiveWorkout {
   programId: string;
   sessionId: string;
+  /** treino avulso (fora da sequência do plano) */
+  free?: boolean;
+  /** registro de um treino já feito: sem cronômetro, com escolha de data */
+  retro?: boolean;
   startedAt: string;
   blockWeek: number;
   deload: boolean;
