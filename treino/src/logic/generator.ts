@@ -206,6 +206,37 @@ export function estimateMinutes(exs: Prescription[]): number {
   return Math.round(sec / 60);
 }
 
+type Region = 'upper' | 'lower' | 'core';
+const UPPER_MUSCLES: Muscle[] = ['peito', 'costas', 'ombros', 'biceps', 'triceps'];
+
+function region(ex: Exercise): Region {
+  const primary = (Object.entries(ex.muscles) as [Muscle, number][]).filter(([, w]) => w >= 1).map(([mu]) => mu);
+  if (primary.every((mu) => mu === 'abdomen')) return 'core';
+  return primary.some((mu) => UPPER_MUSCLES.includes(mu)) ? 'upper' : 'lower';
+}
+
+const portable = (ex: Exercise) => ex.load === 'peso_corporal' || ex.load === 'elastico' || ex.load === 'halter';
+
+/**
+ * Bi-set só faz sentido se os músculos não competem (preserva as repetições — Iversen 2021)
+ * E se for prático na academia: nunca duas máquinas (você ocuparia dois aparelhos e eles
+ * costumam ficar longe), e superior com superior / inferior com inferior (mesma área).
+ * Core sem aparelho combina com qualquer coisa.
+ */
+export function canPair(a: Exercise, b: Exercise): boolean {
+  const overlap = Object.keys(a.muscles).some((k) => (b.muscles as Record<string, number>)[k]);
+  if (overlap) return false;
+  if (a.load === 'maquina' && b.load === 'maquina') return false;
+  const ra = region(a);
+  const rb = region(b);
+  if (ra === 'core' || rb === 'core') {
+    const core = ra === 'core' ? a : b;
+    const other = ra === 'core' ? b : a;
+    return portable(core) || core.load === other.load;
+  }
+  return ra === rb;
+}
+
 function assignSupersets(exs: Prescription[], enabled: boolean) {
   for (const p of exs) delete p.superset;
   if (!enabled) return;
@@ -214,17 +245,12 @@ function assignSupersets(exs: Prescription[], enabled: boolean) {
   while (i < exs.length - 1) {
     const p1 = exs[i];
     const p2 = exs[i + 1];
-    if (p1.role === 'accessory' && p2.role === 'accessory') {
-      const m1 = getExercise(p1.exerciseId).muscles;
-      const m2 = getExercise(p2.exerciseId).muscles;
-      const overlap = Object.keys(m1).some((k) => (m2 as Record<string, number>)[k]);
-      if (!overlap) {
-        const tag = String.fromCharCode(65 + label++);
-        p1.superset = tag;
-        p2.superset = tag;
-        i += 2;
-        continue;
-      }
+    if (p1.role === 'accessory' && p2.role === 'accessory' && canPair(getExercise(p1.exerciseId), getExercise(p2.exerciseId))) {
+      const tag = String.fromCharCode(65 + label++);
+      p1.superset = tag;
+      p2.superset = tag;
+      i += 2;
+      continue;
     }
     i += 1;
   }
@@ -242,7 +268,7 @@ export function repRange(ex: Exercise, role: SlotRole, q: Questionnaire): [numbe
   if (REP_OVERRIDE[ex.id]) return REP_OVERRIDE[ex.id];
   const light = ex.load === 'peso_corporal' || ex.load === 'elastico';
   if (light) return ex.kind === 'compound' ? [10, 20] : [12, 25];
-  if (['lateral_raise', 'rear_delt', 'calf', 'abduction'].includes(ex.pattern)) return [12, 20];
+  if (['lateral_raise', 'front_raise', 'rear_delt', 'calf', 'abduction'].includes(ex.pattern)) return [12, 20];
   if (ex.pattern === 'core') return [10, 15];
   if (ex.kind === 'isolation') return [10, 15];
   if (role === 'main') {
@@ -550,18 +576,7 @@ export function generateProgram(q: Questionnaire, variant = 0): Program {
   const cardioMinutesWeek =
     sessions.reduce((acc, ses) => acc + (ses.finisher ? eq(ses.finisher) : 0), 0) + extraCardio.reduce((acc, c) => acc + eq(c), 0);
 
-  // 5) Agenda semanal sugerida (0 = segunda)
-  const liftDays: Record<number, number[]> = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
-  const weekdays: string[][] = Array.from({ length: 7 }, () => []);
-  liftDays[days].forEach((d, i) => weekdays[d].push(`Treino ${sessions[i].name}`));
-  const free = [5, 2, 6, 3, 1, 4, 0].filter((d) => weekdays[d].length === 0);
-  extraCardio.forEach((c, i) => {
-    const d = free[i];
-    if (d !== undefined) weekdays[d].push(c.title);
-  });
-  weekdays.forEach((w) => {
-    if (w.length === 0) w.push('Descanso ativo (passos/caminhada leve)');
-  });
+  const weekdays = buildWeekdays(sessions, extraCardio);
 
   const stepsTarget = q.goal === 'emagrecimento' ? 9000 : q.goal === 'hipertrofia' ? 7000 : 8000;
 
@@ -570,6 +585,7 @@ export function generateProgram(q: Questionnaire, variant = 0): Program {
   return {
     id: uid(),
     createdAt: new Date().toISOString(),
+    genVersion: GEN_VERSION,
     variant,
     splitName: split.name,
     splitWhy: split.why,
@@ -583,6 +599,80 @@ export function generateProgram(q: Questionnaire, variant = 0): Program {
     hrMax: hr,
     notes,
   };
+}
+
+/* ───────────── Agenda semanal ───────────── */
+
+const LIFT_DAYS: Record<number, number[]> = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
+
+/**
+ * Distribui os dias de cardio extra nos dias de descanso da musculação, de preferência
+ * entre dois dias de treino e nunca dois cardios seguidos (domingo fica para descanso).
+ * O HIIT vai para um dia que não antecede treino de pernas, quando possível.
+ */
+export function buildWeekdays(sessions: Session[], extraCardio: CardioPrescription[]): string[][] {
+  const lifts = LIFT_DAYS[sessions.length] ?? LIFT_DAYS[3];
+  const isLift = (d: number) => lifts.includes(d);
+  const legsOn = (d: number) => {
+    const i = lifts.indexOf(d);
+    if (i < 0) return false;
+    const f = sessions[i].focus;
+    return f === 'lower' || f === 'legs' || f === 'full';
+  };
+  const weekdays: string[][] = Array.from({ length: 7 }, () => []);
+  lifts.forEach((d, i) => weekdays[d].push(`Treino ${sessions[i].name}`));
+
+  const free = [0, 1, 2, 3, 4, 5, 6].filter((d) => !isLift(d));
+  const chosen: number[] = [];
+  for (let k = 0; k < extraCardio.length && chosen.length < free.length; k++) {
+    let best = -1;
+    let bestScore = -Infinity;
+    for (const d of free) {
+      if (chosen.includes(d)) continue;
+      const dist = chosen.length ? Math.min(...chosen.map((c) => Math.min(Math.abs(c - d), 7 - Math.abs(c - d)))) : 7;
+      const score = Math.min(dist, 2) * 10 + (isLift((d + 6) % 7) && isLift((d + 1) % 7) ? 5 : 0) - (d === 6 ? 4 : 0) - d * 0.1;
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    }
+    chosen.push(best);
+  }
+  chosen.sort((x, y) => x - y);
+
+  const remaining = [...extraCardio];
+  const hiitIdx = remaining.findIndex((c) => c.kind === 'hiit');
+  const assign: [number, CardioPrescription][] = [];
+  if (hiitIdx >= 0 && chosen.length) {
+    const day = chosen.find((d) => !legsOn((d + 1) % 7)) ?? chosen[0];
+    assign.push([day, remaining.splice(hiitIdx, 1)[0]]);
+    chosen.splice(chosen.indexOf(day), 1);
+  }
+  chosen.forEach((d, i) => remaining[i] && assign.push([d, remaining[i]]));
+  for (const [d, c] of assign) weekdays[d].push(c.title);
+
+  weekdays.forEach((w) => {
+    if (w.length === 0) w.push('Descanso ativo (passos/caminhada leve)');
+  });
+  return weekdays;
+}
+
+/** Versão do gerador: programas antigos são atualizados (bi-sets/agenda) sem perder o bloco. */
+export const GEN_VERSION = 2;
+
+export function refreshProgram(q: Questionnaire, p: Program): Program {
+  if ((p.genVersion ?? 1) >= GEN_VERSION) return p;
+  return reassignSupersets(q, p);
+}
+
+/** Recalcula bi-sets, tempos e agenda mantendo exercícios, séries e o id do programa (o bloco continua). */
+export function reassignSupersets(q: Questionnaire, p: Program): Program {
+  const sessions = p.sessions.map((s) => {
+    const exercises = s.exercises.map((e) => ({ ...e }));
+    assignSupersets(exercises, q.supersets);
+    return { ...s, exercises, estimatedMinutes: estimateMinutes(exercises) + (s.finisher?.minutes ?? 0) };
+  });
+  return { ...p, sessions, weekdays: buildWeekdays(sessions, p.extraCardio), genVersion: GEN_VERSION };
 }
 
 function buildNotes(q: Questionnaire, cardioMin: number): string[] {
@@ -600,6 +690,6 @@ function buildNotes(q: Questionnaire, cardioMin: number): string[] {
   if (q.goal === 'emagrecimento' || q.goal === 'recomposicao')
     n.push('Para perder gordura mantendo músculo: musculação pesada (não troque por séries leves “para definir”), proteína alta e déficit calórico moderado. O cardio ajuda, mas a dieta é o fator principal.');
   if (q.supersets)
-    n.push('Bi-sets (mesma letra): faça uma série do 1º, ~15 s de transição, uma série do 2º e só então descanse. Economiza ~30% do tempo sem perder resultado, pois os músculos não competem.');
+    n.push('Bi-sets (mesma letra): faça uma série do 1º, ~15 s de transição, uma série do 2º e só então descanse. Economiza ~30% do tempo sem perder resultado, pois os músculos não competem. O app só junta exercícios da mesma área e nunca duas máquinas, para você não “segurar” dois aparelhos.');
   return n;
 }

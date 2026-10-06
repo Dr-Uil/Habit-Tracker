@@ -1,6 +1,6 @@
 import { CARB_FOODS, PROTEIN_FOODS, nutritionPlan, trendAdvice, weightTrend } from '../logic/nutrition';
 import { useProfile } from '../store';
-import { Badge, Card, SectionTitle, cx } from '../components/ui';
+import { Badge, Card, Collapsible, cx } from '../components/ui';
 
 function Macro({ label, grams, kcal, total, color }: { label: string; grams: number; kcal: number; total: number; color: string }) {
   return (
@@ -79,15 +79,18 @@ export function NutritionView() {
         </p>
       </Card>
 
-      <div>
-        <SectionTitle>Como montar o dia ({n.meals} refeições)</SectionTitle>
-        <Card className="space-y-3 text-sm text-slate-300">
+      <Collapsible icon="🍽️" title={`Como montar o dia (${n.meals} refeições)`}>
+        <div className="space-y-3 text-sm text-slate-300">
           <p>
-            Cada refeição: <b>~{n.proteinPerMeal} g de proteína</b> + <b>~{n.carbPerMeal} g de carboidrato</b> + vegetais à vontade. Distribuir a proteína em 3–5 refeições aproveita melhor a síntese muscular.
+            Cada refeição: <b>~{n.proteinPerMeal} g de proteína</b> + <b>~{n.carbPerMeal} g de carboidrato</b> + vegetais à vontade. Distribuir a proteína em
+            3–5 refeições aproveita melhor a síntese muscular.
           </p>
           <div className="rounded-xl bg-slate-950 p-3">
             <div className="mb-1 font-semibold">🍽️ Método do prato (para quem não quer contar)</div>
-            <p className="text-xs text-slate-400">½ prato de vegetais/salada · ¼ de proteína (palma da mão = ~25–30 g de proteína) · ¼ de carboidrato (arroz, feijão, batata, mandioca) · 1 polegar de gordura boa (azeite, castanhas).</p>
+            <p className="text-xs text-slate-400">
+              ½ prato de vegetais/salada · ¼ de proteína (palma da mão = ~25–30 g de proteína) · ¼ de carboidrato (arroz, feijão, batata, mandioca) · 1 polegar
+              de gordura boa (azeite, castanhas).
+            </p>
           </div>
           <div className="space-y-2">
             <div className="rounded-xl bg-slate-950 p-3">
@@ -96,27 +99,33 @@ export function NutritionView() {
             </div>
             <div className="rounded-xl bg-slate-950 p-3">
               <b>Almoço</b>
-              <p className="text-xs text-slate-400">Arroz + feijão + frango/carne/peixe + salada e legumes. O feijão com arroz é uma ótima base — some a carne magra.</p>
+              <p className="text-xs text-slate-400">
+                Arroz + feijão + frango/carne/peixe + salada e legumes. O feijão com arroz é uma ótima base — some a carne magra.
+              </p>
             </div>
             <div className="rounded-xl bg-slate-950 p-3">
               <b>Pré-treino {lateTraining ? '(lanche da tarde, 60–90 min antes)' : '(30–90 min antes)'}</b>
-              <p className="text-xs text-slate-400">Carboidrato fácil + proteína: banana com aveia e whey/iogurte, ou pão com queijo/peito de peru. Evite muita gordura/fibra logo antes.</p>
+              <p className="text-xs text-slate-400">
+                Carboidrato fácil + proteína: banana com aveia e whey/iogurte, ou pão com queijo/peito de peru. Evite muita gordura/fibra logo antes.
+              </p>
             </div>
             <div className="rounded-xl bg-slate-950 p-3">
               <b>Pós-treino {lateTraining ? '(jantar)' : ''}</b>
-              <p className="text-xs text-slate-400">Proteína (~{n.proteinPerMeal} g) + carboidrato para repor: carne/peixe + batata/mandioca/arroz + vegetais. Não precisa ser “na hora”: até ~2 h depois está ótimo.</p>
+              <p className="text-xs text-slate-400">
+                Proteína (~{n.proteinPerMeal} g) + carboidrato para repor: carne/peixe + batata/mandioca/arroz + vegetais. Não precisa ser “na hora”: até ~2 h
+                depois está ótimo.
+              </p>
             </div>
             <div className="rounded-xl bg-slate-950 p-3">
               <b>Ceia (opcional)</b>
               <p className="text-xs text-slate-400">Iogurte, cottage ou leite: proteína de digestão lenta antes de dormir ajuda a fechar a meta do dia.</p>
             </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Collapsible>
 
-      <div>
-        <SectionTitle>Fontes de proteína</SectionTitle>
-        <Card className="divide-y divide-slate-800 p-0">
+      <Collapsible icon="🥩" title="Fontes de proteína">
+        <div className="divide-y divide-slate-800 p-0">
           {PROTEIN_FOODS.map((f) => (
             <div key={f.food} className="flex justify-between gap-3 px-4 py-2 text-sm">
               <span className="text-slate-300">
@@ -125,12 +134,11 @@ export function NutritionView() {
               <span className="shrink-0 font-semibold tabular-nums">{f.protein} g</span>
             </div>
           ))}
-        </Card>
-      </div>
+        </div>
+      </Collapsible>
 
-      <div>
-        <SectionTitle>Fontes de carboidrato</SectionTitle>
-        <Card className="divide-y divide-slate-800 p-0">
+      <Collapsible icon="🍚" title="Fontes de carboidrato">
+        <div className="divide-y divide-slate-800 p-0">
           {CARB_FOODS.map((f) => (
             <div key={f.food} className="flex justify-between gap-3 px-4 py-2 text-sm">
               <span className="text-slate-300">
@@ -139,44 +147,51 @@ export function NutritionView() {
               <span className="shrink-0 font-semibold tabular-nums">{f.carbs} g</span>
             </div>
           ))}
-        </Card>
-      </div>
+        </div>
+      </Collapsible>
 
-      <div>
-        <SectionTitle>Suplementos com evidência forte</SectionTitle>
+      <Collapsible icon="💊" title="Suplementos com evidência forte">
         <div className="space-y-2">
-          <Card className="text-sm">
+          <div className="rounded-xl bg-slate-950 p-3 text-sm">
             <div className="font-semibold">💊 Creatina monoidratada — 3 a 5 g/dia</div>
-            <p className="mt-1 text-slate-300">O suplemento mais estudado para força e massa muscular, seguro para adultos saudáveis. Todo dia, em qualquer horário (não precisa de “saturação”). Benefícios também para mulheres. Pode subir ~1 kg de água no início — é normal.</p>
-          </Card>
-          <Card className="text-sm">
-            <div className="font-semibold">☕ Cafeína — {n.caffeineMg[0]}–{n.caffeineMg[1]} mg, 30–60 min antes</div>
+            <p className="mt-1 text-slate-300">
+              O suplemento mais estudado para força e massa muscular, seguro para adultos saudáveis. Todo dia, em qualquer horário (não precisa de “saturação”).
+              Benefícios também para mulheres. Pode subir ~1 kg de água no início — é normal.
+            </p>
+          </div>
+          <div className="rounded-xl bg-slate-950 p-3 text-sm">
+            <div className="font-semibold">
+              ☕ Cafeína — {n.caffeineMg[0]}–{n.caffeineMg[1]} mg, 30–60 min antes
+            </div>
             <p className="mt-1 text-slate-300">
               Melhora força e resistência. Comece pela dose menor (1 xícara de café coado ≈ 80–100 mg).
-              {lateTraining && ' Como vocês treinam à tarde, atenção ao sono: cafeína pode atrapalhar por até ~8–9 h. Use dose pequena ou deixe para os treinos mais cedo.'}
+              {lateTraining &&
+                ' Como vocês treinam à tarde, atenção ao sono: cafeína pode atrapalhar por até ~8–9 h. Use dose pequena ou deixe para os treinos mais cedo.'}
             </p>
-          </Card>
-          <Card className="text-sm">
+          </div>
+          <div className="rounded-xl bg-slate-950 p-3 text-sm">
             <div className="font-semibold">🥛 Whey protein — se faltar proteína na comida</div>
             <p className="mt-1 text-slate-300">É comida prática, não mágica. Útil para bater a meta diária de proteína.</p>
-          </Card>
-          <Card className="text-sm text-slate-400">
-            Sem evidência relevante para hipertrofia em pessoas bem alimentadas: BCAA, glutamina, “termogênicos”, “pré-hormonais”. Vitamina D e ferro apenas se exames indicarem deficiência.
-          </Card>
+          </div>
+          <div className="rounded-xl bg-slate-950 p-3 text-sm text-slate-400">
+            Sem evidência relevante para hipertrofia em pessoas bem alimentadas: BCAA, glutamina, “termogênicos”, “pré-hormonais”. Vitamina D e ferro apenas se
+            exames indicarem deficiência.
+          </div>
         </div>
-      </div>
+      </Collapsible>
 
-      <div>
-        <SectionTitle>Regras de ouro</SectionTitle>
-        <Card className="space-y-2 text-sm text-slate-300">
+      <Collapsible icon="⭐" title="Regras de ouro">
+        <div className="space-y-2 text-sm text-slate-300">
           <p>✅ Bata a proteína todo dia — é o fator nutricional nº 1 para manter/ganhar músculo.</p>
           <p>✅ Durma 7–9 h: pouco sono reduz síntese muscular e aumenta a fome.</p>
           <p>✅ Álcool atrapalha a recuperação; se beber, que seja pouco e longe do treino.</p>
           <p>✅ Pese-se 3–4×/semana e olhe a média semanal. O app ajusta as calorias pela tendência.</p>
           <p>✅ 80/20: comida de verdade na maior parte do tempo; flexibilidade no resto ajuda a manter por anos.</p>
-          <p className="text-xs text-slate-500">Estimativas educativas, não substituem avaliação de nutricionista/médico — especialmente com doenças crônicas, gestação ou uso de medicamentos.</p>
-        </Card>
-      </div>
+          <p className="text-xs text-slate-500">
+            Estimativas educativas, não substituem avaliação de nutricionista/médico — especialmente com doenças crônicas, gestação ou uso de medicamentos.
+          </p>
+        </div>
+      </Collapsible>
     </div>
   );
 }

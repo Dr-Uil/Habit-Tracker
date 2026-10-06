@@ -3,11 +3,11 @@ import { getExercise } from '../data/exercises';
 import { PRINCIPLES, timingTips } from '../data/science';
 import { CARDIO_MODE_LABEL } from '../logic/generator';
 import { blockInfo, nextSessionIndex } from '../logic/progression';
-import { buildActiveWorkout, cardioInWeek, doneSets, workoutsInWeek, workoutVolume, weekStreak } from '../logic/stats';
+import { buildActiveWorkout, buildFreeWorkout, cardioInWeek, doneSets, workoutsInWeek, workoutVolume, weekStreak } from '../logic/stats';
 import { fmtDate, localDate, uid } from '../logic/util';
 import { useProfile } from '../store';
 import type { CardioLog, CardioMode } from '../types';
-import { Badge, Button, Card, Chip, NumberField, Ring, SectionTitle, Sheet } from '../components/ui';
+import { Badge, Button, Card, Chip, Collapsible, NumberField, OptionCard, Ring, SectionTitle, Sheet } from '../components/ui';
 
 export function TodayView() {
   const { profile, update } = useProfile();
@@ -18,6 +18,7 @@ export function TodayView() {
   const [pickOpen, setPickOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [weightOpen, setWeightOpen] = useState(false);
+  const [freeOpen, setFreeOpen] = useState(false);
   const idx = chosen ?? nextIdx;
   const ses = profile.program.sessions[idx];
   const weekCount = workoutsInWeek(profile).length;
@@ -57,7 +58,7 @@ export function TodayView() {
 
       {info.deload && (
         <Card className="border-sky-500/30 bg-sky-500/5 text-sm text-sky-100">
-          🔋 <b>Semana de deload.</b> Metade das séries, mesmas cargas, longe da falha. Parece “fácil demais” — e é para ser. Na próxima semana começa um novo bloco.
+          🔋 <b>Semana leve (deload):</b> metade das séries, mesmas cargas. É para parecer fácil.
         </Card>
       )}
 
@@ -105,6 +106,10 @@ export function TodayView() {
         </Card>
       </div>
 
+      <Button variant="secondary" full onClick={() => setFreeOpen(true)}>
+        📝 Registrar treino feito / avulso
+      </Button>
+
       <div className="grid grid-cols-2 gap-3">
         <Button variant="secondary" onClick={() => setCardioOpen(true)}>
           ❤️ Registrar cardio
@@ -114,15 +119,9 @@ export function TodayView() {
         </Button>
       </div>
 
-      <div>
-        <SectionTitle>Dica do dia</SectionTitle>
-        <Card>
-          <div className="font-semibold">
-            {tip.icon} {tip.title}
-          </div>
-          <p className="mt-1 text-sm leading-relaxed text-slate-300">{tip.body}</p>
-        </Card>
-      </div>
+      <Collapsible icon={tip.icon} title={tip.title} subtitle="Dica do dia">
+        <p className="text-sm leading-relaxed text-slate-300">{tip.body}</p>
+      </Collapsible>
 
       {recent.length > 0 && (
         <div>
@@ -160,6 +159,26 @@ export function TodayView() {
               <span className="text-xs text-slate-500">{i === nextIdx ? 'sugerido' : `~${s.estimatedMinutes} min`}</span>
             </Chip>
           ))}
+        </div>
+      </Sheet>
+
+      <Sheet open={freeOpen} onClose={() => setFreeOpen(false)} title="Treino fora do plano">
+        <div className="space-y-2">
+          <OptionCard
+            icon="📅"
+            title="Já fiz — quero registrar"
+            desc="Ex.: treinei hoje (ou outro dia) sem o app. Você escolhe os exercícios, coloca peso e repetições e a data."
+            onClick={() => update((p) => ({ ...p, activeWorkout: buildFreeWorkout(p, true) }))}
+          />
+          <OptionCard
+            icon="▶️"
+            title="Vou treinar agora, montando na hora"
+            desc="Treino livre com cronômetro de descanso. Não altera a sequência do seu plano."
+            onClick={() => update((p) => ({ ...p, activeWorkout: buildFreeWorkout(p, false) }))}
+          />
+          <p className="px-1 pt-1 text-xs text-slate-500">
+            As cargas registradas entram no histórico e já servem de base para as sugestões dos próximos treinos.
+          </p>
         </div>
       </Sheet>
 
@@ -249,7 +268,9 @@ export function WeightSheet({ open, onClose }: { open: boolean; onClose: () => v
   };
   return (
     <Sheet open={open} onClose={onClose} title="Peso e medidas de hoje">
-      <p className="mb-3 text-sm text-slate-400">Melhor horário: ao acordar, após ir ao banheiro, antes de comer. O que importa é a média/tendência, não um dia isolado.</p>
+      <p className="mb-3 text-sm text-slate-400">
+        Melhor horário: ao acordar, após ir ao banheiro, antes de comer. O que importa é a média/tendência, não um dia isolado.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <NumberField label="Peso" value={w} onChange={setW} suffix="kg" />
         <NumberField label="Cintura (opcional)" value={waist} onChange={setWaist} suffix="cm" />

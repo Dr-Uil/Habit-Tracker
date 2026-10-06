@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateProgram, finisherBase } from '../generator';
+import { generateProgram, finisherBase, canPair, refreshProgram, GEN_VERSION } from '../generator';
 import { getExercise, isAvailable } from '../../data/exercises';
 import type { EquipmentAccess, Experience, Goal, Questionnaire } from '../../types';
 import { baseQ } from './fixtures';
@@ -80,5 +80,57 @@ describe('generateProgram', () => {
     expect(finisherBase({ ...baseQ, goal: 'emagrecimento', sessionMinutes: 75 })).toBe(15);
     expect(finisherBase({ ...baseQ, goal: 'hipertrofia', sessionMinutes: 60 })).toBe(0);
     expect(finisherBase({ ...baseQ, goal: 'emagrecimento', sessionMinutes: 45 })).toBe(0);
+  });
+});
+
+describe('bi-sets práticos', () => {
+  it('nunca junta duas máquinas nem superior com inferior', () => {
+    for (const q of combos()) {
+      const p = generateProgram(q);
+      for (const s of p.sessions) {
+        const groups = new Map<string, string[]>();
+        for (const e of s.exercises) if (e.superset) groups.set(e.superset, [...(groups.get(e.superset) ?? []), e.exerciseId]);
+        for (const [, ids] of groups) {
+          expect(ids).toHaveLength(2);
+          expect(canPair(getExercise(ids[0]), getExercise(ids[1]))).toBe(true);
+        }
+      }
+    }
+    expect(canPair(getExercise('cadeira_extensora'), getExercise('cadeira_flexora'))).toBe(false);
+    expect(canPair(getExercise('panturrilha_em_pe'), getExercise('elevacao_lateral_halter'))).toBe(false);
+    expect(canPair(getExercise('triceps_pulley'), getExercise('rosca_cabo'))).toBe(true);
+  });
+});
+
+describe('agenda semanal', () => {
+  it('espalha o cardio extra: nunca em dois dias seguidos e fora dos dias de musculação', () => {
+    for (const daysPerWeek of [2, 3, 4]) {
+      for (const extraCardioDays of [1, 2, 3]) {
+        if (daysPerWeek === 4 && extraCardioDays === 3) continue; // só sobram Qua, Sáb e Dom: dois seguidos é inevitável
+        const p = generateProgram({ ...baseQ, daysPerWeek, extraCardioDays });
+        const cardioDays = p.weekdays.map((w, d) => (w.some((x) => !x.startsWith('Treino') && !x.startsWith('Descanso')) ? d : -1)).filter((d) => d >= 0);
+        expect(cardioDays).toHaveLength(extraCardioDays);
+        for (const d of cardioDays) expect(p.weekdays[d].some((x) => x.startsWith('Treino'))).toBe(false);
+        for (let i = 1; i < cardioDays.length; i++) expect(cardioDays[i] - cardioDays[i - 1]).toBeGreaterThan(1);
+      }
+    }
+  });
+  it('3 dias de treino + 2 de cardio: cardio na terça e na quinta', () => {
+    const p = generateProgram({ ...baseQ, daysPerWeek: 3, extraCardioDays: 2 });
+    expect(p.weekdays[1][0]).not.toMatch(/Treino|Descanso/);
+    expect(p.weekdays[3][0]).not.toMatch(/Treino|Descanso/);
+  });
+});
+
+describe('refreshProgram', () => {
+  it('atualiza planos antigos mantendo id e exercícios', () => {
+    const p = generateProgram({ ...baseQ, daysPerWeek: 3, extraCardioDays: 2 });
+    const old = { ...p, genVersion: undefined, weekdays: [] as string[][] };
+    const r = refreshProgram(baseQ, old);
+    expect(r.id).toBe(p.id);
+    expect(r.genVersion).toBe(GEN_VERSION);
+    expect(r.weekdays).toHaveLength(7);
+    expect(r.sessions.map((s) => s.exercises.map((e) => e.exerciseId))).toEqual(p.sessions.map((s) => s.exercises.map((e) => e.exerciseId)));
+    expect(refreshProgram(baseQ, r)).toBe(r);
   });
 });

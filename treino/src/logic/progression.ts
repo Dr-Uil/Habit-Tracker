@@ -75,6 +75,8 @@ export function loadIncrement(ex: Exercise, weight: number): number {
   }
 }
 
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','));
+
 function roundTo(n: number, step: number) {
   if (step <= 0) return Math.round(n * 2) / 2;
   return Math.max(0, Math.round(n / step) * step);
@@ -84,6 +86,8 @@ export interface Suggestion {
   weight: number | null;
   repsTarget: number[]; // por série
   message: string;
+  /** resumo de uma linha para a tela de treino */
+  short: string;
   trend: 'primeira' | 'subir' | 'manter' | 'reduzir' | 'deload' | 'reps';
 }
 
@@ -114,6 +118,7 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
       weight: null,
       repsTarget: Array(nSets).fill(pr.repMin),
       trend: 'primeira',
+      short: `Escolha uma carga para ${pr.repMin}–${pr.repMax} reps (sobrando ~${Math.max(2, targetRir)})`,
       message: `Primeira vez: faça 1–2 séries leves de aproximação e escolha uma carga em que você consiga ${pr.repMin}–${pr.repMax} repetições deixando ~${Math.max(2, targetRir)} na reserva. Anote o que fizer — o app calcula a próxima.`,
     };
   }
@@ -128,6 +133,7 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
       weight: topWeight,
       repsTarget: Array(nSets).fill(pr.repMin),
       trend: 'deload',
+      short: `Mesma carga (${fmt(topWeight)} kg), bem longe da falha`,
       message: 'Semana de deload: mesma carga, metade das séries e ~4 repetições na reserva. Serve para dissipar a fadiga e voltar mais forte.',
     };
   }
@@ -141,11 +147,12 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
         weight: topWeight,
         repsTarget: base,
         trend: 'reps',
+        short: 'Hora de dificultar (mais carga ou variação)',
         message: `Você passou de ${pr.repMax} repetições: hora de dificultar (mochila com peso, elástico mais forte, descida mais lenta ou variação mais difícil).`,
       };
     }
     const targets = Array.from({ length: nSets }, (_, i) => Math.min(pr.repMax, (last[i]?.reps ?? last[last.length - 1].reps) + 1));
-    return { weight: topWeight, repsTarget: targets, trend: 'reps', message: 'Tente 1 repetição a mais por série do que da última vez, com a mesma técnica.' };
+    return { weight: topWeight, repsTarget: targets, trend: 'reps', short: '+1 repetição por série', message: 'Tente 1 repetição a mais por série do que da última vez, com a mesma técnica.' };
   }
 
   if (allTop) {
@@ -155,6 +162,7 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
       weight: next,
       repsTarget: Array(nSets).fill(pr.repMin),
       trend: 'subir',
+      short: `Suba para ${fmt(next)} kg 💪`,
       message: `Você bateu ${pr.repMax} repetições em todas as séries com ${topWeight} kg → suba para ${next} kg e recomece perto de ${pr.repMin} repetições.`,
     };
   }
@@ -166,6 +174,7 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
       weight: next,
       repsTarget: Array(nSets).fill(pr.repMin),
       trend: 'reduzir',
+      short: `Reduza para ~${fmt(next)} kg e capriche na técnica`,
       message: `Na última vez a maioria das séries ficou abaixo de ${pr.repMin} repetições. Reduza para ~${next} kg e foque na técnica — progredir depois é mais rápido do que insistir.`,
     };
   }
@@ -178,6 +187,7 @@ export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolea
     weight: topWeight,
     repsTarget: targets,
     trend: 'manter',
+    short: `${fmt(topWeight)} kg — tente +1 repetição`,
     message: `Mantenha ${topWeight} kg e tente +1 repetição por série (meta: chegar a ${pr.repMax} em todas para subir a carga).`,
   };
 }
