@@ -85,6 +85,7 @@ export function WorkoutSession() {
   const targetRir = aw.deload ? 4 : info.targetRir;
   const [infoEx, setInfoEx] = useState<string | null>(null);
   const [swapIdx, setSwapIdx] = useState<number | null>(null);
+  const [swapSearch, setSwapSearch] = useState<number | null>(null);
   const [adding, setAdding] = useState(aw.free === true && aw.exercises.length === 0);
   const [finishing, setFinishing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -324,6 +325,12 @@ export function WorkoutSession() {
                 </div>
               </div>
             ))}
+            <Button variant="secondary" full onClick={() => {
+                setSwapSearch(swapIdx);
+                setSwapIdx(null);
+              }}>
+              🔎 Buscar outro exercício (lista completa)
+            </Button>
             <Button
               variant="danger"
               full
@@ -339,6 +346,16 @@ export function WorkoutSession() {
       </Sheet>
 
       {adding && <AddExerciseSheet onClose={() => setAdding(false)} onPick={addExercise} />}
+      {swapSearch != null && (
+        <AddExerciseSheet
+          title="Trocar por…"
+          onClose={() => setSwapSearch(null)}
+          onPick={(id) => {
+            swap(swapSearch, id, !aw.free && confirm('Trocar também no plano? (OK = sempre, Cancelar = só hoje)'));
+            setSwapSearch(null);
+          }}
+        />
+      )}
 
       <Sheet open={confirmCancel} onClose={() => setConfirmCancel(false)} title="Descartar treino?">
         <p className="text-sm text-slate-400">As séries registradas neste treino serão perdidas.</p>
@@ -555,19 +572,19 @@ function ExerciseCard({
 
 /* ───────────── Adicionar exercício (busca) ───────────── */
 
-function AddExerciseSheet({ onClose, onPick }: { onClose: () => void; onPick: (id: string) => void }) {
+function AddExerciseSheet({ onClose, onPick, title = 'Adicionar exercício' }: { onClose: () => void; onPick: (id: string) => void; title?: string }) {
   const [term, setTerm] = useState('');
   const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const t = norm(term.trim());
-  const list = EXERCISES.filter((e) => !t || norm(`${e.name} ${PATTERN_LABEL[e.pattern]} ${Object.keys(e.muscles).join(' ')}`).includes(t));
+  const list = EXERCISES.filter((e) => !t || norm(`${e.name} ${(e.aliases ?? []).join(' ')} ${PATTERN_LABEL[e.pattern]} ${Object.keys(e.muscles).join(' ')}`).includes(t));
   const byGroup = new Map<string, typeof list>();
   for (const e of list) {
-    const main = (Object.entries(e.muscles) as [Muscle, number][]).find(([, w]) => w >= 1)?.[0] ?? 'abdomen';
+    const main = (Object.entries(e.muscles) as [Muscle, number][]).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
     const k = MUSCLE_LABEL[main];
     byGroup.set(k, [...(byGroup.get(k) ?? []), e]);
   }
   return (
-    <Sheet open onClose={onClose} title="Adicionar exercício">
+    <Sheet open onClose={onClose} title={title}>
       <input
         autoFocus
         value={term}
@@ -584,6 +601,7 @@ function AddExerciseSheet({ onClose, onPick }: { onClose: () => void; onPick: (i
               {items.map((e) => (
                 <button key={e.id} onClick={() => onPick(e.id)} className="w-full rounded-xl px-3 py-2.5 text-left text-sm hover:bg-slate-800 active:bg-slate-800">
                   {e.name}
+                  {e.aliases && <span className="block text-xs text-slate-500">{e.aliases.join(' · ')}</span>}
                 </button>
               ))}
             </div>
