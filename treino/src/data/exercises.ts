@@ -7,17 +7,17 @@ import type { EquipmentAccess, Exercise, LoadType, Muscle, Pattern } from '../ty
 export const EXERCISES: Exercise[] = [
   // ───────────── Agachamento (squat) ─────────────
   {
-    id: 'agachamento_hack', name: 'Agachamento no hack', pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1,
+    id: 'agachamento_hack', name: 'Agachamento no hack', aliases: ['Hack machine', 'Hack leg'], pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1,
     muscles: { quadriceps: 1, gluteos: 0.5 },
     cues: ['Pés na largura dos ombros, no meio da plataforma', 'Desça controlado (2–3 s) até onde mantiver a lombar apoiada', 'Suba empurrando o chão, sem travar os joelhos'],
   },
   {
-    id: 'agachamento_livre', name: 'Agachamento livre (barra)', pattern: 'squat', kind: 'compound', load: 'barra', skill: 3,
+    id: 'agachamento_livre', name: 'Agachamento livre (barra)', aliases: ['Agachamento livre (HBL)'], pattern: 'squat', kind: 'compound', load: 'barra', skill: 3,
     muscles: { quadriceps: 1, gluteos: 0.5 }, avoid: ['lombar'],
     cues: ['Barra apoiada no trapézio, peito aberto', 'Inspire e trave o abdômen antes de descer', 'Joelhos acompanham a direção dos pés; desça até a coxa ficar paralela ou abaixo'],
   },
   {
-    id: 'leg_press', name: 'Leg press 45°', pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1,
+    id: 'leg_press', name: 'Leg press 45°', aliases: ['Leg 45°'], pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1,
     muscles: { quadriceps: 1, gluteos: 0.5 },
     cues: ['Lombar e quadril sempre colados no encosto', 'Desça até ~90° de joelho ou mais, sem o quadril “enrolar”', 'Não trave os joelhos no topo'],
   },
@@ -39,12 +39,12 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Dobradiça de quadril (hinge) ─────────────
   {
-    id: 'stiff_barra', name: 'Levantamento terra romeno (RDL) com barra', pattern: 'hinge', kind: 'compound', load: 'barra', skill: 2,
+    id: 'stiff_barra', name: 'Levantamento terra romeno (RDL) com barra', aliases: ['Stiff'], pattern: 'hinge', kind: 'compound', load: 'barra', skill: 2,
     muscles: { posteriores: 1, gluteos: 0.5 }, avoid: ['lombar'], lengthened: true,
     cues: ['Joelhos levemente flexionados e fixos', 'Leve o quadril para trás com a barra rente às pernas', 'Desça até sentir alongar o posterior (geralmente abaixo do joelho), coluna neutra'],
   },
   {
-    id: 'stiff_halter', name: 'RDL com halteres', pattern: 'hinge', kind: 'compound', load: 'halter', skill: 2,
+    id: 'stiff_halter', name: 'RDL com halteres', aliases: ['Stiff HBC'], pattern: 'hinge', kind: 'compound', load: 'halter', skill: 2,
     muscles: { posteriores: 1, gluteos: 0.5 }, avoid: ['lombar'], lengthened: true,
     cues: ['Halteres rentes às coxas', 'Quadril para trás, coluna neutra', 'Pare quando o quadril não for mais para trás'],
   },
@@ -71,7 +71,7 @@ export const EXERCISES: Exercise[] = [
     cues: ['Banco na altura do joelho', 'Empurre pelo calcanhar da perna de cima', 'Desça devagar, sem impulso da perna de baixo'],
   },
   {
-    id: 'afundo_caminhando', name: 'Afundo caminhando', pattern: 'lunge', kind: 'compound', load: 'halter', skill: 2,
+    id: 'afundo_caminhando', name: 'Afundo caminhando', aliases: ['Passada (HBC) no corredor', 'Passada'], pattern: 'lunge', kind: 'compound', load: 'halter', skill: 2,
     muscles: { quadriceps: 1, gluteos: 1 }, avoid: ['joelho'], unilateral: true,
     cues: ['Passos longos', 'Joelho de trás quase toca o chão', 'Tronco firme'],
   },
@@ -161,12 +161,12 @@ export const EXERCISES: Exercise[] = [
     cues: ['Pause 1–2 s embaixo, no alongamento máximo', 'Suba o máximo', 'Sem quicar'],
   },
   {
-    id: 'panturrilha_leg', name: 'Panturrilha no leg press', pattern: 'calf', kind: 'isolation', load: 'maquina', skill: 1,
+    id: 'panturrilha_leg', name: 'Panturrilha no leg press', aliases: ['Panturrilha 45°', 'Panturrilha no leg 45°'], pattern: 'calf', kind: 'isolation', load: 'maquina', skill: 1,
     muscles: { panturrilhas: 1 }, lengthened: true,
     cues: ['Ponta dos pés na borda da plataforma', 'Alongue bem embaixo', 'Joelhos estendidos (não travados)'],
   },
   {
-    id: 'panturrilha_sentado', name: 'Panturrilha sentado', pattern: 'calf', kind: 'isolation', load: 'maquina', skill: 1,
+    id: 'panturrilha_sentado', name: 'Panturrilha sentado', aliases: ['Cadeira solear'], pattern: 'calf', kind: 'isolation', load: 'maquina', skill: 1,
     muscles: { panturrilhas: 1 },
     cues: ['Foca no sóleo', 'Pausa embaixo', 'Amplitude total'],
   },
@@ -227,7 +227,7 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Empurrar vertical ─────────────
   {
-    id: 'desenvolvimento_halter', name: 'Desenvolvimento com halteres (sentado)', pattern: 'v_push', kind: 'compound', load: 'halter', skill: 1,
+    id: 'desenvolvimento_halter', name: 'Desenvolvimento com halteres (sentado)', aliases: ['Desenvolvimento HBC'], pattern: 'v_push', kind: 'compound', load: 'halter', skill: 1,
     muscles: { ombros: 1, triceps: 0.5 }, avoid: ['ombro'],
     cues: ['Banco a ~80°', 'Cotovelos levemente à frente do corpo', 'Desça até a altura das orelhas'],
   },
@@ -244,12 +244,12 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Crucifixo ─────────────
   {
-    id: 'crossover', name: 'Crucifixo no cabo (crossover)', pattern: 'chest_fly', kind: 'isolation', load: 'cabo', skill: 1,
+    id: 'crossover', name: 'Crucifixo no cabo (crossover)', aliases: ['Adução de ombros no cross', 'Crucifixo no cross'], pattern: 'chest_fly', kind: 'isolation', load: 'cabo', skill: 1,
     muscles: { peito: 1 }, lengthened: true,
     cues: ['Polias na altura do ombro ou um pouco abaixo', 'Cotovelos levemente flexionados e fixos', 'Abra até alongar bem o peito'],
   },
   {
-    id: 'peck_deck', name: 'Voador (peck deck)', pattern: 'chest_fly', kind: 'isolation', load: 'maquina', skill: 1,
+    id: 'peck_deck', name: 'Voador (peck deck)', aliases: ['Crucifixo fly', 'Crucifixo no fly'], pattern: 'chest_fly', kind: 'isolation', load: 'maquina', skill: 1,
     muscles: { peito: 1 },
     cues: ['Pegadas na altura do peito', 'Abra até sentir alongar', 'Feche sem bater as pegadas'],
   },
@@ -266,7 +266,7 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Puxar horizontal (remadas) ─────────────
   {
-    id: 'remada_maquina', name: 'Remada máquina (peito apoiado)', pattern: 'h_pull', kind: 'compound', load: 'maquina', skill: 1,
+    id: 'remada_maquina', name: 'Remada máquina (peito apoiado)', aliases: ['Remada apoiada articulada', 'Remada articulada'], pattern: 'h_pull', kind: 'compound', load: 'maquina', skill: 1,
     muscles: { costas: 1, biceps: 0.5 },
     cues: ['Peito apoiado = poupa a lombar', 'Puxe os cotovelos para trás', 'Deixe as escápulas abrirem na volta (alongamento)'],
   },
@@ -298,7 +298,7 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Puxar vertical ─────────────
   {
-    id: 'puxada_frente', name: 'Puxada frontal (pulldown)', pattern: 'v_pull', kind: 'compound', load: 'cabo', skill: 1,
+    id: 'puxada_frente', name: 'Puxada frontal (pulldown)', aliases: ['Puxada frontal pronada', 'Puxada pronada'], pattern: 'v_pull', kind: 'compound', load: 'cabo', skill: 1,
     muscles: { costas: 1, biceps: 0.5 }, lengthened: true,
     cues: ['Pegada um pouco mais aberta que os ombros', 'Puxe até a parte alta do peito, peito “para cima”', 'Suba até esticar os braços (alongamento)'],
   },
@@ -313,7 +313,7 @@ export const EXERCISES: Exercise[] = [
     cues: ['Polia alta, ajoelhado de lado', 'Cotovelo desce em direção ao quadril', 'Deixe o braço subir bem na volta'],
   },
   {
-    id: 'pullover_cabo', name: 'Pullover no cabo (braços estendidos)', pattern: 'v_pull', kind: 'isolation', load: 'cabo', skill: 1,
+    id: 'pullover_cabo', name: 'Pullover no cabo (braços estendidos)', aliases: ['Extensão de ombros (polia)'], pattern: 'v_pull', kind: 'isolation', load: 'cabo', skill: 1,
     muscles: { costas: 1 }, lengthened: true,
     cues: ['Braços quase estendidos', 'Leve a barra até as coxas', 'Volte até alongar a dorsal'],
   },
@@ -335,12 +335,12 @@ export const EXERCISES: Exercise[] = [
     cues: ['Polia baixa, cabo passando atrás ou à frente do corpo', 'Suba até a altura do ombro', 'Desça em 2–3 s'],
   },
   {
-    id: 'elevacao_lateral_halter', name: 'Elevação lateral com halteres', pattern: 'lateral_raise', kind: 'isolation', load: 'halter', skill: 1,
+    id: 'elevacao_lateral_halter', name: 'Elevação lateral com halteres', aliases: ['Abdução de ombros (HBC)', 'Elevação lateral HBC'], pattern: 'lateral_raise', kind: 'isolation', load: 'halter', skill: 1,
     muscles: { ombros: 1 },
     cues: ['Leve inclinação à frente', 'Cotovelos guiam o movimento', 'Carga leve, controle total'],
   },
   {
-    id: 'elevacao_lateral_maquina', name: 'Elevação lateral na máquina', pattern: 'lateral_raise', kind: 'isolation', load: 'maquina', skill: 1,
+    id: 'elevacao_lateral_maquina', name: 'Elevação lateral na máquina', aliases: ['Abdução de ombros no aparelho'], pattern: 'lateral_raise', kind: 'isolation', load: 'maquina', skill: 1,
     muscles: { ombros: 1 },
     cues: ['Ombro alinhado ao eixo da máquina', 'Sobe até a altura do ombro', 'Desce devagar'],
   },
@@ -352,7 +352,7 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Deltoide posterior ─────────────
   {
-    id: 'crucifixo_inverso_maquina', name: 'Crucifixo inverso (peck deck invertido)', pattern: 'rear_delt', kind: 'isolation', load: 'maquina', skill: 1,
+    id: 'crucifixo_inverso_maquina', name: 'Crucifixo inverso (peck deck invertido)', aliases: ['Crucifixo invertido no fly'], pattern: 'rear_delt', kind: 'isolation', load: 'maquina', skill: 1,
     muscles: { ombros: 1 },
     cues: ['Peito no encosto', 'Abra os braços pensando em “afastar” as mãos', 'Sem encolher os ombros'],
   },
@@ -384,12 +384,12 @@ export const EXERCISES: Exercise[] = [
     cues: ['Polia baixa atrás do corpo', 'Cotovelo um pouco atrás do tronco', 'Suba sem mover o cotovelo'],
   },
   {
-    id: 'rosca_direta', name: 'Rosca direta (barra W)', pattern: 'biceps', kind: 'isolation', load: 'barra', skill: 1,
+    id: 'rosca_direta', name: 'Rosca direta (barra W)', aliases: ['Rosca bíceps direta (HBM)', 'Rosca direta barra'], pattern: 'biceps', kind: 'isolation', load: 'barra', skill: 1,
     muscles: { biceps: 1 }, avoid: ['punho'],
     cues: ['Cotovelos fixos ao lado do corpo', 'Sem jogar o tronco', 'Desça até estender'],
   },
   {
-    id: 'rosca_martelo', name: 'Rosca martelo', pattern: 'biceps', kind: 'isolation', load: 'halter', skill: 1,
+    id: 'rosca_martelo', name: 'Rosca martelo', aliases: ['Martelo'], pattern: 'biceps', kind: 'isolation', load: 'halter', skill: 1,
     muscles: { biceps: 1 },
     cues: ['Pegada neutra (polegar para cima)', 'Trabalha braquial e braquiorradial', 'Controle a descida'],
   },
@@ -411,12 +411,12 @@ export const EXERCISES: Exercise[] = [
     cues: ['De costas para a polia, braços acima da cabeça', 'Posição alongada: ~40% mais hipertrofia que o pulley comum', 'Estenda totalmente os cotovelos'],
   },
   {
-    id: 'triceps_frances_halter', name: 'Tríceps francês com halter (sentado)', pattern: 'triceps', kind: 'isolation', load: 'halter', skill: 1,
+    id: 'triceps_frances_halter', name: 'Tríceps francês com halter (sentado)', aliases: ['Tríceps francês HBC'], pattern: 'triceps', kind: 'isolation', load: 'halter', skill: 1,
     muscles: { triceps: 1 }, lengthened: true, avoid: ['cotovelo'],
     cues: ['Halter atrás da cabeça com as duas mãos', 'Cotovelos apontando para cima', 'Desça até alongar bem'],
   },
   {
-    id: 'triceps_pulley', name: 'Tríceps na polia (corda ou barra)', pattern: 'triceps', kind: 'isolation', load: 'cabo', skill: 1,
+    id: 'triceps_pulley', name: 'Tríceps na polia (corda ou barra)', aliases: ['Tríceps corda', 'Tríceps pulley'], pattern: 'triceps', kind: 'isolation', load: 'cabo', skill: 1,
     muscles: { triceps: 1 },
     cues: ['Cotovelos colados ao corpo', 'Estenda totalmente', 'Volte até ~90°'],
   },
@@ -438,7 +438,7 @@ export const EXERCISES: Exercise[] = [
 
   // ───────────── Extras (úteis para registrar treinos livres) ─────────────
   {
-    id: 'mergulho_paralelas', name: 'Paralelas / mergulho (livre ou graviton)', pattern: 'h_push', kind: 'compound', load: 'peso_corporal', skill: 2, gymOnly: true,
+    id: 'mergulho_paralelas', name: 'Paralelas / mergulho (livre ou graviton)', aliases: ['Mergulho'], pattern: 'h_push', kind: 'compound', load: 'peso_corporal', skill: 2, gymOnly: true,
     muscles: { peito: 1, triceps: 1, ombros: 0.5 }, avoid: ['ombro'],
     cues: ['Tronco levemente inclinado à frente = mais peito', 'Desça até ~90° de cotovelo', 'Use o graviton se não fizer 6+'],
   },
@@ -448,7 +448,7 @@ export const EXERCISES: Exercise[] = [
     cues: ['Começa com palmas para você', 'Gire as mãos enquanto sobe', 'Controle a descida'],
   },
   {
-    id: 'elevacao_frontal', name: 'Elevação frontal (halter, anilha ou cabo)', pattern: 'front_raise', kind: 'isolation', load: 'halter', skill: 1,
+    id: 'elevacao_frontal', name: 'Elevação frontal (halter, anilha ou cabo)', aliases: ['Flexão de ombros (HBC)'], pattern: 'front_raise', kind: 'isolation', load: 'halter', skill: 1,
     muscles: { ombros: 1 },
     cues: ['Suba até a altura dos ombros', 'Sem balançar o tronco', 'O deltoide anterior já trabalha muito nos supinos — use pouco volume'],
   },
@@ -457,6 +457,44 @@ export const EXERCISES: Exercise[] = [
     muscles: { triceps: 1 },
     cues: ['Tronco inclinado, braço colado ao corpo', 'Estenda totalmente o cotovelo', 'Carga leve, segure 1 s'],
   },
+
+  // ───────────── Equipamentos da academia (fichas do Sergio Amim) ─────────────
+  { id: 'supino_reto_em_pe', name: 'Supino reto em pé (máquina)', pattern: 'h_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { peito: 1, triceps: 0.5, ombros: 0.5 }, cues: ['Pegada na altura do meio do peito', 'Empurre sem tirar as costas do apoio'] },
+  { id: 'supino_canadense', name: 'Supino canadense articulado', pattern: 'h_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { peito: 1, triceps: 0.5, ombros: 0.5 }, cues: ['Escápulas encaixadas', 'Volte até alongar o peito'] },
+  { id: 'supino_peito_aberto', name: 'Supino reto peito aberto (máquina)', pattern: 'h_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { peito: 1, triceps: 0.5, ombros: 0.5 }, lengthened: true, cues: ['Abra bem na descida', 'Empurre juntando as mãos'] },
+  { id: 'supino_aranha', name: 'Supino aranha', pattern: 'h_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { peito: 1, triceps: 0.5, ombros: 0.5 }, cues: ['Amplitude completa', 'Controle a descida'] },
+  { id: 'supino_45', name: 'Supino 45° (pegada pronada ou neutra)', aliases: ['Supino 45°', 'Supino 45° pronado', 'Supino 45° neutro'], pattern: 'incline_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { peito: 1, ombros: 0.5, triceps: 0.5 }, cues: ['Pegada neutra poupa o ombro', 'Desça até alongar o peito'] },
+  { id: 'supino_35_barra', name: 'Supino inclinado 35° com barra', aliases: ['Supino B. 35°'], pattern: 'incline_push', kind: 'compound', load: 'barra', skill: 2, muscles: { peito: 1, ombros: 0.5, triceps: 0.5 }, avoid: ['ombro'], cues: ['Barra desce na parte alta do peito', 'Escápulas retraídas'] },
+  { id: 'crucifixo_45_art', name: 'Crucifixo 45° articulado (máquina)', pattern: 'chest_fly', kind: 'isolation', load: 'maquina', skill: 1, muscles: { peito: 1 }, lengthened: true, cues: ['Abra até alongar o peito', 'Feche sem bater'] },
+  { id: 'desenv_articulado', name: 'Desenvolvimento articulado (alternado)', aliases: ['Desenv. art. alternado'], pattern: 'v_push', kind: 'compound', load: 'maquina', skill: 1, muscles: { ombros: 1, triceps: 0.5 }, avoid: ['ombro'], cues: ['Pode alternar os braços', 'Não arqueie a lombar'] },
+  { id: 'elevacao_frontal_corda', name: 'Flexão de ombros com corda (polia baixa)', aliases: ['Elevação frontal na polia'], pattern: 'front_raise', kind: 'isolation', load: 'cabo', skill: 1, muscles: { ombros: 1 }, cues: ['Suba até a altura dos ombros', 'Sem balançar o tronco'] },
+  { id: 'remada_alta', name: 'Remada alta na barra reta', aliases: ['Remada alta'], pattern: 'lateral_raise', kind: 'compound', load: 'barra', skill: 2, muscles: { ombros: 1, costas: 0.5 }, avoid: ['ombro'], cues: ['Pegada na largura dos ombros ou mais aberta', 'Cotovelos sobem até a altura dos ombros, não acima'] },
+  { id: 'encolhimento', name: 'Encolhimento com halteres (HBC)', aliases: ['Encolhimento', 'Trapézio'], pattern: 'shrug', kind: 'isolation', load: 'halter', skill: 1, muscles: { costas: 0.5 }, cues: ['Suba os ombros em direção às orelhas', 'Segure 1 s em cima'] },
+  { id: 'triceps_testa_reta', name: 'Tríceps testa (barra reta)', pattern: 'triceps', kind: 'isolation', load: 'barra', skill: 2, muscles: { triceps: 1 }, lengthened: true, avoid: ['cotovelo'], cues: ['Leve a barra um pouco atrás da cabeça', 'Cotovelos fixos'] },
+  { id: 'triceps_supinado', name: 'Tríceps pulley pegada supinada', aliases: ['Tríceps supinado'], pattern: 'triceps', kind: 'isolation', load: 'cabo', skill: 1, muscles: { triceps: 1 }, cues: ['Palmas para cima', 'Cotovelos colados ao corpo'] },
+  { id: 'triceps_articulado', name: 'Tríceps articulado (máquina)', aliases: ['Tríceps art.'], pattern: 'triceps', kind: 'isolation', load: 'maquina', skill: 1, muscles: { triceps: 1 }, cues: ['Cotovelos alinhados ao eixo', 'Estenda totalmente'] },
+  { id: 'puxada_supinada', name: 'Puxada frontal pegada supinada', aliases: ['Puxada supinada'], pattern: 'v_pull', kind: 'compound', load: 'cabo', skill: 1, muscles: { costas: 1, biceps: 0.5 }, lengthened: true, cues: ['Palmas viradas para você', 'Puxe até a parte alta do peito'] },
+  { id: 'puxada_semipronada', name: 'Puxada pegada semi-pronada (neutra)', aliases: ['Pulley semi-pronado'], pattern: 'v_pull', kind: 'compound', load: 'cabo', skill: 1, muscles: { costas: 1, biceps: 0.5 }, lengthened: true, cues: ['Pegada neutra', 'Suba até esticar os braços'] },
+  { id: 'pulley_supinado_art', name: 'Pulley supinado articulado', pattern: 'v_pull', kind: 'compound', load: 'maquina', skill: 1, muscles: { costas: 1, biceps: 0.5 }, cues: ['Peito para cima', 'Volte até alongar a dorsal'] },
+  { id: 'puxada_articulada', name: 'Puxada frontal articulada (alternada ou simultânea)', aliases: ['Puxada frontal art.'], pattern: 'v_pull', kind: 'compound', load: 'maquina', skill: 1, muscles: { costas: 1, biceps: 0.5 }, cues: ['Pode alternar os braços', 'Cotovelos descem em direção ao quadril'] },
+  { id: 'remada_art_pronada', name: 'Remada articulada pegada pronada', aliases: ['Remada art. pron.'], pattern: 'h_pull', kind: 'compound', load: 'maquina', skill: 1, muscles: { costas: 1, biceps: 0.5 }, cues: ['Peito apoiado', 'Puxe os cotovelos para trás'] },
+  { id: 'remada_dy_row', name: 'Remada D.Y. Row', aliases: ['Remada Dy Row'], pattern: 'h_pull', kind: 'compound', load: 'maquina', skill: 1, muscles: { costas: 1, biceps: 0.5 }, cues: ['Tronco firme', 'Estique bem os braços na volta'] },
+  { id: 'remada_supinada', name: 'Remada baixa pegada supinada', aliases: ['Remada P.S.'], pattern: 'h_pull', kind: 'compound', load: 'cabo', skill: 1, muscles: { costas: 1, biceps: 0.5 }, cues: ['Palmas para cima', 'Puxe até o umbigo'] },
+  { id: 'rosca_alternada', name: 'Rosca bíceps alternada (HBC)', aliases: ['Rosca alternada'], pattern: 'biceps', kind: 'isolation', load: 'halter', skill: 1, muscles: { biceps: 1 }, cues: ['Gire o punho ao subir', 'Sem balançar'] },
+  { id: 'rosca_robo', name: 'Bíceps no robô (máquina)', aliases: ['Bíceps robô', 'Robô'], pattern: 'biceps', kind: 'isolation', load: 'maquina', skill: 1, muscles: { biceps: 1 }, cues: ['Cotovelo alinhado ao eixo', 'Desça até quase estender'] },
+  { id: 'rosca_scott_unil', name: 'Rosca Scott unilateral (HBC)', pattern: 'biceps', kind: 'isolation', load: 'halter', skill: 1, muscles: { biceps: 1 }, unilateral: true, lengthened: true, cues: ['Axila no apoio', 'Desça quase até estender'] },
+  { id: 'abd_supra_maquina', name: 'Abdominal supra na máquina (sentado)', aliases: ['Abd. supra máq.'], pattern: 'core', kind: 'isolation', load: 'maquina', skill: 1, muscles: { abdomen: 1 }, cues: ['Enrole a coluna', 'Volte devagar'] },
+  { id: 'abd_infra_vertical', name: 'Abdominal infra no vertical', aliases: ['Abd. infra vertical'], pattern: 'core', kind: 'isolation', load: 'peso_corporal', skill: 2, gymOnly: true, muscles: { abdomen: 1 }, cues: ['Antebraços no apoio', 'Enrole o quadril ao subir as pernas'] },
+  { id: 'abd_obliquo', name: 'Abdominal oblíquo (máquina)', aliases: ['Abd. oblíquo'], pattern: 'core', kind: 'isolation', load: 'maquina', skill: 1, muscles: { abdomen: 1 }, cues: ['Gire o tronco com controle', 'Faça os dois lados'] },
+  { id: 'abd_remador', name: 'Abdominal remador', aliases: ['Abd. remador'], pattern: 'core', kind: 'isolation', load: 'peso_corporal', skill: 1, muscles: { abdomen: 1 }, cues: ['Sentado, aproxime joelhos e tronco', 'Volte sem relaxar'] },
+  { id: 'perdigueiro', name: 'Perdigueiro (bird dog)', pattern: 'core', kind: 'isolation', load: 'peso_corporal', skill: 1, muscles: { abdomen: 1 }, cues: ['Estenda braço e perna opostos', 'Quadril parado'] },
+  { id: 'extensao_tronco', name: 'Extensão de tronco (máquina lombar)', aliases: ['Ext. de tronco'], pattern: 'hinge', kind: 'isolation', load: 'maquina', skill: 1, muscles: { gluteos: 0.5, posteriores: 0.5 }, cues: ['Movimento lento', 'Sem hiperestender a coluna'] },
+  { id: 'agachamento_transformer', name: 'Agachamento no Transformer', aliases: ['Ag. Transformer'], pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1, muscles: { quadriceps: 1, gluteos: 0.5 }, cues: ['Desça controlado', 'Suba empurrando o chão'] },
+  { id: 'leg_80', name: 'Leg press 80°', aliases: ['Leg 80°'], pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1, muscles: { quadriceps: 1, gluteos: 0.5 }, cues: ['Lombar apoiada', 'Não trave os joelhos'] },
+  { id: 'leg_art_unil', name: 'Leg press articulado unilateral', aliases: ['Leg art. unil.'], pattern: 'squat', kind: 'compound', load: 'maquina', skill: 1, unilateral: true, muscles: { quadriceps: 1, gluteos: 0.5 }, cues: ['Uma perna de cada vez', 'Amplitude completa'] },
+  { id: 'flexora_ajoelhado', name: 'Flexora ajoelhado', pattern: 'knee_flex', kind: 'isolation', load: 'maquina', skill: 1, unilateral: true, muscles: { posteriores: 1 }, cues: ['Quadril parado', 'Volte até estender'] },
+  { id: 'flexora_em_pe', name: 'Flexora em pé', pattern: 'knee_flex', kind: 'isolation', load: 'maquina', skill: 1, unilateral: true, muscles: { posteriores: 1 }, cues: ['Tronco apoiado', 'Flexione até o máximo'] },
+  { id: 'stiff_anilha', name: 'Stiff com anilha', pattern: 'hinge', kind: 'compound', load: 'halter', skill: 2, muscles: { posteriores: 1, gluteos: 0.5 }, avoid: ['lombar'], lengthened: true, cues: ['Anilha junto ao corpo', 'Quadril para trás, coluna neutra'] },
 
   // ───────────── Core ─────────────
   {
@@ -475,7 +513,7 @@ export const EXERCISES: Exercise[] = [
     cues: ['Enrole o quadril no final', 'Sem balanço', 'Joelhos flexionados facilitam'],
   },
   {
-    id: 'prancha', name: 'Prancha (30–60 s, contração máxima)', pattern: 'core', kind: 'isolation', load: 'peso_corporal', skill: 1,
+    id: 'prancha', name: 'Prancha (30–60 s, contração máxima)', aliases: ['Ponte ventral'], pattern: 'core', kind: 'isolation', load: 'peso_corporal', skill: 1,
     muscles: { abdomen: 1 },
     cues: ['Contraia glúteos e abdômen forte', 'Corpo alinhado', 'Conte repetições como segundos ÷ 4 (ex.: 40 s ≈ 10)'],
   },
@@ -522,6 +560,7 @@ export const PATTERN_LABEL: Record<Pattern, string> = {
   v_pull: 'Puxada vertical',
   lateral_raise: 'Elevação lateral',
   front_raise: 'Elevação frontal',
+  shrug: 'Encolhimento',
   rear_delt: 'Deltoide posterior',
   biceps: 'Bíceps',
   triceps: 'Tríceps',

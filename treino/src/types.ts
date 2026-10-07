@@ -36,6 +36,7 @@ export type Pattern =
   | 'v_pull'
   | 'lateral_raise'
   | 'front_raise'
+  | 'shrug'
   | 'rear_delt'
   | 'biceps'
   | 'triceps'
@@ -46,6 +47,8 @@ export type LoadType = 'barra' | 'halter' | 'maquina' | 'cabo' | 'peso_corporal'
 export interface Exercise {
   id: string;
   name: string;
+  /** outros nomes usados nas academias (aparecem na busca) */
+  aliases?: string[];
   pattern: Pattern;
   kind: 'compound' | 'isolation';
   load: LoadType;
