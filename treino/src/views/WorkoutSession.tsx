@@ -5,6 +5,7 @@ import { alternatives, CARDIO_MODE_LABEL, groupExercises, repRange, restFor } fr
 import { bestE1rm, blockInfo, exerciseHistory, suggest, type Suggestion } from '../logic/progression';
 import { doneSets, prsInWorkout, workoutVolume } from '../logic/stats';
 import { fmtKg, localDate, uid } from '../logic/util';
+import { feedbackContext } from '../logic/feedback';
 import { useProfile } from '../store';
 import type { ActiveWorkout, Muscle, Prescription, Questionnaire, SetLog, WorkoutLog } from '../types';
 import { Badge, Button, Card, Chip, Collapsible, Sheet, cx } from '../components/ui';
@@ -61,6 +62,7 @@ const TREND_TONE: Record<Suggestion['trend'], 'accent' | 'ok' | 'warn' | 'info' 
   reduzir: 'warn',
   deload: 'info',
   reps: 'default',
+  cuidado: 'warn',
 };
 
 const isLight = (exerciseId: string) => {
@@ -95,9 +97,10 @@ export function WorkoutSession() {
   const setExercise = (ei: number, fn: (e: ActiveWorkout['exercises'][number]) => ActiveWorkout['exercises'][number]) =>
     setAw((a) => ({ ...a, exercises: a.exercises.map((e, i) => (i === ei ? fn(e) : e)) }));
 
+  const fbCtx = useMemo(() => feedbackContext(profile.workouts), [profile.workouts]);
   const suggestions = useMemo(
-    () => aw.exercises.map((e) => suggest(e.prescription, profile.workouts, aw.deload, targetRir)),
-    [aw.exercises, profile.workouts, aw.deload, targetRir],
+    () => aw.exercises.map((e) => suggest(e.prescription, profile.workouts, aw.deload, targetRir, fbCtx)),
+    [aw.exercises, profile.workouts, aw.deload, targetRir, fbCtx],
   );
 
   const startRest = (a: ActiveWorkout, ei: number, last: boolean): ActiveWorkout => {
@@ -164,7 +167,7 @@ export function WorkoutSession() {
 
   const addExercise = (exerciseId: string) => {
     const pr = freePrescription(exerciseId, profile.questionnaire);
-    const sug = suggest(pr, profile.workouts, false, targetRir);
+    const sug = suggest(pr, profile.workouts, false, targetRir, fbCtx);
     setAw((a) => ({
       ...a,
       exercises: [...a.exercises, { key: pr.key, exerciseId, prescription: pr, sets: Array.from({ length: 3 }, () => ({ weight: sug.weight, reps: null, rir: null, done: false })) }],
@@ -177,7 +180,7 @@ export function WorkoutSession() {
     const old = aw.exercises[ei];
     const [repMin, repMax] = repRange(ex, old.prescription.role, profile.questionnaire);
     const newPr: Prescription = { ...old.prescription, exerciseId: newId, pattern: ex.pattern, repMin, repMax, restSec: restFor(ex, old.prescription.role, profile.questionnaire) };
-    const sug = suggest(newPr, profile.workouts, aw.deload, targetRir);
+    const sug = suggest(newPr, profile.workouts, aw.deload, targetRir, fbCtx);
     update((p) => {
       const a = p.activeWorkout!;
       const exercises = a.exercises.map((e, i) =>
@@ -477,7 +480,7 @@ function ExerciseCard({
 
       <button onClick={() => setWhy(!why)} className="mt-3 w-full rounded-xl bg-slate-950/60 p-2.5 text-left text-xs text-slate-300">
         <span className="flex items-center gap-2">
-          <Badge tone={TREND_TONE[sug.trend]}>{{ primeira: '1ª vez', subir: '↑ subir', manter: '→ manter', reduzir: '↓ reduzir', deload: 'deload', reps: '+ reps' }[sug.trend]}</Badge>
+          <Badge tone={TREND_TONE[sug.trend]}>{{ primeira: '1ª vez', subir: '↑ subir', manter: '→ manter', reduzir: '↓ reduzir', deload: 'deload', reps: '+ reps', cuidado: '⚠ cuidado' }[sug.trend]}</Badge>
           <span className="flex-1">{sug.short}</span>
           <span className="text-slate-500">{why ? '▴' : 'ⓘ'}</span>
         </span>
@@ -803,10 +806,22 @@ function FinishSheet({ onClose, title }: { onClose: () => void; title: string })
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Anotações (opcional): dores, sono, energia…"
+        placeholder="Observações: dores, sono, energia… (ex.: dor no joelho, dormi mal, treino fácil)"
         className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm outline-none focus:border-accent"
         rows={2}
       />
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {['Dor no joelho', 'Dor no ombro', 'Dor na lombar', 'Dor no cotovelo', 'Sem dor', 'Cansado / dormi mal', 'Treino fácil'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setNotes((n) => (n.trim() ? `${n.trim()}, ${t.toLowerCase()}` : t))}
+            className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 active:bg-slate-800"
+          >
+            + {t}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-slate-500">O app lê o esforço e as observações para ajustar as próximas cargas (dor → segura e reduz nos exercícios da região; cansaço → não sobe; fácil → sobe antes).</p>
       <div className="mt-4 flex gap-2">
         <Button variant="secondary" onClick={onClose}>
           Voltar

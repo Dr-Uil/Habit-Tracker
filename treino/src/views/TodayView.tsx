@@ -3,6 +3,7 @@ import { getExercise } from '../data/exercises';
 import { PRINCIPLES, timingTips } from '../data/science';
 import { CARDIO_MODE_LABEL } from '../logic/generator';
 import { blockInfo, nextSessionIndex } from '../logic/progression';
+import { feedbackContext } from '../logic/feedback';
 import { buildActiveWorkout, buildFreeWorkout, cardioInWeek, doneSets, workoutsInWeek, workoutVolume, weekStreak } from '../logic/stats';
 import { fmtDate, localDate, uid } from '../logic/util';
 import { useProfile } from '../store';
@@ -25,7 +26,8 @@ export function TodayView() {
   const cardioWeek = cardioInWeek(profile);
   const streak = weekStreak(profile);
 
-  const start = () => update((p) => ({ ...p, activeWorkout: buildActiveWorkout(p, idx) }));
+  const start = (light = false) => update((p) => ({ ...p, activeWorkout: buildActiveWorkout(p, idx, light) }));
+  const fb = feedbackContext(profile.workouts);
 
   // dica do dia: alterna entre princípios e dicas de horário
   const tips = [...timingTips(q).map((t) => ({ title: t.title, icon: t.icon, body: t.text })), ...PRINCIPLES];
@@ -59,6 +61,22 @@ export function TodayView() {
       {info.deload && (
         <Card className="border-sky-500/30 bg-sky-500/5 text-sm text-sky-100">
           🔋 <b>Semana leve (deload):</b> metade das séries, mesmas cargas. É para parecer fácil.
+        </Card>
+      )}
+
+      {fb.reasons.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <div className="text-sm font-semibold text-amber-200">📋 Ajustes pelo que você relatou</div>
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-300">
+            {fb.reasons.map((r) => (
+              <li key={r}>• {r}</li>
+            ))}
+          </ul>
+          {(fb.overreaching || fb.fatigued) && !info.deload && (
+            <Button variant="secondary" full className="mt-3" onClick={() => start(true)}>
+              🔋 Fazer o próximo treino em modo leve
+            </Button>
+          )}
         </Card>
       )}
 
@@ -100,7 +118,7 @@ export function TodayView() {
               </li>
             )}
           </ul>
-          <Button full className="mt-4 py-4 text-base" onClick={start}>
+          <Button full className="mt-4 py-4 text-base" onClick={() => start()}>
             ▶ Começar treino
           </Button>
         </Card>
