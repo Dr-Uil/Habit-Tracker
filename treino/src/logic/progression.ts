@@ -1,6 +1,7 @@
 import { getExercise } from '../data/exercises';
 import type { Exercise, Prescription, Profile, WorkoutLog } from '../types';
 import { BLOCK_LENGTH } from './generator';
+import { EMPTY_CONTEXT, exerciseRegions, REGION_LABEL, type FeedbackContext } from './feedback';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Periodização em blocos de 6 semanas, guiada por RIR (repetições na reserva):
@@ -88,7 +89,7 @@ export interface Suggestion {
   message: string;
   /** resumo de uma linha para a tela de treino */
   short: string;
-  trend: 'primeira' | 'subir' | 'manter' | 'reduzir' | 'deload' | 'reps';
+  trend: 'primeira' | 'subir' | 'manter' | 'reduzir' | 'deload' | 'reps' | 'cuidado';
 }
 
 /** Última execução registrada deste exercício (qualquer sessão), mais recente primeiro. */
@@ -107,7 +108,63 @@ export function exerciseHistory(workouts: WorkoutLog[], exerciseId: string) {
   return out;
 }
 
-export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolean, targetRir: number): Suggestion {
+/**
+ * Sugestão de carga + ajuste pelo que a pessoa relatou ao finalizar os treinos
+ * (esforço e observações — ver logic/feedback.ts). Sem contexto, é a dupla progressão pura.
+ */
+export function suggest(pr: Prescription, workouts: WorkoutLog[], deload: boolean, targetRir: number, ctx: FeedbackContext = EMPTY_CONTEXT): Suggestion {
+  const base = baseSuggest(pr, workouts, deload, targetRir);
+  if (base.trend === 'primeira' || base.trend === 'deload' || base.weight == null) return base;
+  const ex = getExercise(pr.exerciseId);
+  const hist = exerciseHistory(workouts, pr.exerciseId);
+  const last = hist[0]?.sets ?? [];
+  const topWeight = last.length ? Math.max(...last.map((s) => s.weight)) : base.weight;
+
+  const hurt = exerciseRegions(ex).filter((r) => ctx.painRegions.includes(r));
+  if (hurt.length) {
+    const inc = loadIncrement(ex, topWeight);
+    const w = topWeight > 0 ? roundTo(Math.min(base.weight, topWeight * 0.9), inc || 0.5) : topWeight;
+    const where = hurt.map((r) => REGION_LABEL[r]).join('/');
+    return {
+      ...base,
+      weight: w,
+      repsTarget: base.repsTarget.map(() => pr.repMin),
+      trend: 'cuidado',
+      short: topWeight > 0 ? `Dor no ${where}: ~${fmt(w)} kg, só sem dor` : `Dor no ${where}: amplitude sem dor`,
+      message: `Você relatou dor no ${where} recentemente. Use ~10% menos carga, amplitude confortável e pare se doer na articulação — se incomodar, troque o exercício (🔄). Quando melhorar, escreva “sem dor” nas observações para voltar a progredir.`,
+    };
+  }
+
+  if (ctx.fatigued && base.trend === 'subir') {
+    return {
+      ...base,
+      weight: topWeight,
+      repsTarget: base.repsTarget.map(() => pr.repMax),
+      trend: 'manter',
+      short: `${fmt(topWeight)} kg — segure a carga hoje`,
+      message: `Você bateu o topo da faixa, mas relatou cansaço/treino muito puxado na última vez. Repita ${topWeight} kg com boa técnica hoje; a carga sobe no próximo treino em que você estiver bem.`,
+    };
+  }
+
+  if (ctx.easy && base.trend === 'manter') {
+    const working = last.filter((s) => s.weight === topWeight);
+    if (working.length && working.every((s) => s.reps >= pr.repMax - 1)) {
+      const inc = loadIncrement(ex, topWeight);
+      const next = roundTo(topWeight + Math.max(inc, topWeight * 0.025), inc || 0.5);
+      return {
+        ...base,
+        weight: next,
+        repsTarget: base.repsTarget.map(() => pr.repMin),
+        trend: 'subir',
+        short: `Treino anterior foi fácil: suba para ${fmt(next)} kg`,
+        message: `Você ficou a 1 repetição do topo e relatou que o treino foi fácil → pode subir para ${next} kg e recomeçar perto de ${pr.repMin} repetições.`,
+      };
+    }
+  }
+  return base;
+}
+
+function baseSuggest(pr: Prescription, workouts: WorkoutLog[], deload: boolean, targetRir: number): Suggestion {
   const ex = getExercise(pr.exerciseId);
   const nSets = effectiveSets(pr, deload);
   const hist = exerciseHistory(workouts, pr.exerciseId);

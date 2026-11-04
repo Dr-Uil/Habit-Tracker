@@ -2,6 +2,7 @@ import { getExercise } from '../data/exercises';
 import type { ActiveWorkout, Muscle, Profile, WorkoutLog } from '../types';
 import { bestE1rm, blockInfo, effectiveSets, suggest } from './progression';
 import { localDate } from './util';
+import { feedbackContext } from './feedback';
 
 export function workoutVolume(w: Pick<WorkoutLog, 'exercises'>): number {
   let v = 0;
@@ -67,18 +68,21 @@ export function prsInWorkout(history: WorkoutLog[], w: Pick<WorkoutLog, 'exercis
   return out;
 }
 
-export function buildActiveWorkout(p: Profile, sessionIndex: number): ActiveWorkout {
+/** `light` = treino em modo leve (como deload) por escolha, ex.: após relatar cansaço. */
+export function buildActiveWorkout(p: Profile, sessionIndex: number, light = false): ActiveWorkout {
   const info = blockInfo(p);
+  const deload = info.deload || light;
+  const ctx = feedbackContext(p.workouts);
   const ses = p.program.sessions[sessionIndex];
   return {
     programId: p.program.id,
     sessionId: ses.id,
     startedAt: new Date().toISOString(),
     blockWeek: info.week,
-    deload: info.deload,
+    deload,
     exercises: ses.exercises.map((pr) => {
-      const sug = suggest(pr, p.workouts, info.deload, info.targetRir);
-      const n = effectiveSets(pr, info.deload);
+      const sug = suggest(pr, p.workouts, deload, info.targetRir, ctx);
+      const n = effectiveSets(pr, deload);
       return {
         key: pr.key,
         exerciseId: pr.exerciseId,
