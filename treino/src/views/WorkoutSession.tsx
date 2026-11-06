@@ -6,6 +6,7 @@ import { bestE1rm, blockInfo, exerciseHistory, suggest, type Suggestion } from '
 import { doneSets, prsInWorkout, workoutVolume } from '../logic/stats';
 import { fmtKg, localDate, uid } from '../logic/util';
 import { feedbackContext } from '../logic/feedback';
+import { WatchPaste } from '../components/WatchPaste';
 import { useProfile } from '../store';
 import type { ActiveWorkout, Muscle, Prescription, Questionnaire, SetLog, WatchData, WorkoutLog } from '../types';
 import { Badge, Button, Card, Chip, Collapsible, NumberField, Sheet, cx } from '../components/ui';
@@ -860,7 +861,8 @@ function FinishSheet({ onClose, title }: { onClose: () => void; title: string })
           </button>
         ))}
       </div>
-      <Collapsible className="mt-4" icon="⌚" title="Dados do relógio (opcional)" subtitle="Copie do resumo do treino no relógio/app de saúde">
+      <Collapsible className="mt-4" icon="⌚" title="Dados do relógio (opcional)" subtitle="Cole do atalho do iPhone ou digite do resumo do relógio">
+        <WatchPaste onData={(d) => setWatch((w) => ({ ...w, ...d }))} />
         <div className="grid grid-cols-2 gap-3">
           <NumberField label="FC média" suffix="bpm" value={watch.avgHr} onChange={(v) => setWatch((w) => ({ ...w, avgHr: v }))} />
           <NumberField label="FC máxima" suffix="bpm" value={watch.maxHr} onChange={(v) => setWatch((w) => ({ ...w, maxHr: v }))} />

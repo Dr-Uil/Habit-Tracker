@@ -7,6 +7,7 @@ import { feedbackContext } from '../logic/feedback';
 import { buildActiveWorkout, buildFreeWorkout, cardioInWeek, doneSets, workoutsInWeek, workoutVolume, weekStreak } from '../logic/stats';
 import { fmtDate, localDate, uid } from '../logic/util';
 import { useProfile } from '../store';
+import { WatchPaste } from '../components/WatchPaste';
 import type { CardioLog, CardioMode } from '../types';
 import { Badge, Button, Card, Chip, Collapsible, NumberField, OptionCard, Ring, SectionTitle, Sheet } from '../components/ui';
 
@@ -263,6 +264,13 @@ function CardioSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
           ))}
         </div>
         <NumberField label="Duração" value={minutes} onChange={setMinutes} suffix="min" />
+        <WatchPaste
+          onData={(d) => {
+            if (d.avgHr) setAvgHr(d.avgHr);
+            if (d.kcal) setKcal(d.kcal);
+            if (d.minutes) setMinutes(d.minutes);
+          }}
+        />
         <div className="grid grid-cols-2 gap-3">
           <NumberField label="⌚ FC média (opcional)" value={avgHr} onChange={setAvgHr} suffix="bpm" />
           <NumberField label="⌚ Calorias (opcional)" value={kcal} onChange={setKcal} suffix="kcal" />
