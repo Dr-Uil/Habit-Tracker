@@ -169,6 +169,15 @@ export interface WorkoutLog {
   cardioDone?: boolean;
   rpe?: number;
   notes?: string;
+  /** dados copiados do relógio/smartwatch (opcional) */
+  watch?: WatchData;
+}
+
+export interface WatchData {
+  avgHr?: number;
+  maxHr?: number;
+  kcal?: number;
+  minutes?: number;
 }
 
 export interface ActiveWorkout {
@@ -199,6 +208,8 @@ export interface CardioLog {
   kind: CardioPrescription['kind'] | 'outro';
   minutes: number;
   mode: CardioMode;
+  avgHr?: number;
+  kcal?: number;
 }
 
 export interface Profile {
@@ -211,6 +222,7 @@ export interface Profile {
   bodyLogs: BodyLog[];
   cardioLogs: CardioLog[];
   activeWorkout?: ActiveWorkout;
+  prefs?: { keepAwake?: boolean };
 }
 
 export interface AppData {

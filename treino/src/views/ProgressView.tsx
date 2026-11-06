@@ -155,6 +155,8 @@ export function ProgressView() {
                     <div className="text-xs text-slate-500">
                       {fmtDate(w.finishedAt)} · {doneSets(w)} séries · sem. {w.blockWeek}
                       {w.rpe ? ` · esforço ${w.rpe}` : ''}
+                      {w.watch?.kcal ? ` · ${w.watch.kcal} kcal` : ''}
+                      {w.watch?.avgHr ? ` · ❤️ ${w.watch.avgHr} bpm` : ''}
                     </div>
                   </div>
                   <span className="text-sm tabular-nums text-slate-300">{workoutVolume(w).toLocaleString('pt-BR')} kg</span>
@@ -173,7 +175,10 @@ export function ProgressView() {
                   <span className="text-slate-300">
                     {fmtDate(c.date)} · {{ zona2: 'Zona 2', hiit: 'HIIT', hiit_curto: 'HIIT', caminhada: 'Caminhada', outro: 'Cardio' }[c.kind]}
                   </span>
-                  <span className="text-slate-400">{c.minutes} min</span>
+                  <span className="text-slate-400">
+                    {c.minutes} min{c.avgHr ? ` · ❤️ ${c.avgHr}` : ''}
+                    {c.kcal ? ` · ${c.kcal} kcal` : ''}
+                  </span>
                 </div>
               ))}
           </Card>
@@ -196,6 +201,13 @@ export function ProgressView() {
                 </div>
               </div>
             ))}
+            {detailW.watch && (
+              <p className="rounded-xl bg-slate-950 p-3 text-slate-300">
+                ⌚ {[detailW.watch.minutes && `${detailW.watch.minutes} min`, detailW.watch.avgHr && `FC média ${detailW.watch.avgHr} bpm`, detailW.watch.maxHr && `FC máx ${detailW.watch.maxHr} bpm`, detailW.watch.kcal && `${detailW.watch.kcal} kcal`]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
             {detailW.notes && <p className="rounded-xl bg-slate-950 p-3 text-slate-300">📝 {detailW.notes}</p>}
             <Button
               variant="danger"
