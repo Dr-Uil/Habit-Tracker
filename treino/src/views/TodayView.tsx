@@ -212,9 +212,11 @@ function CardioSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [kind, setKind] = useState<CardioLog['kind']>(plan[0]?.kind ?? 'zona2');
   const [minutes, setMinutes] = useState<number | undefined>(plan[0]?.minutes ?? 30);
   const [mode, setMode] = useState<CardioMode>(plan[0]?.mode ?? 'esteira');
+  const [avgHr, setAvgHr] = useState<number | undefined>();
+  const [kcal, setKcal] = useState<number | undefined>();
   const save = () => {
     if (!minutes) return;
-    update((p) => ({ ...p, cardioLogs: [...p.cardioLogs, { id: uid(), date: localDate(), kind, minutes, mode }] }));
+    update((p) => ({ ...p, cardioLogs: [...p.cardioLogs, { id: uid(), date: localDate(), kind, minutes, mode, avgHr: avgHr || undefined, kcal: kcal || undefined }] }));
     onClose();
   };
   return (
@@ -261,6 +263,10 @@ function CardioSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
           ))}
         </div>
         <NumberField label="Duração" value={minutes} onChange={setMinutes} suffix="min" />
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="⌚ FC média (opcional)" value={avgHr} onChange={setAvgHr} suffix="bpm" />
+          <NumberField label="⌚ Calorias (opcional)" value={kcal} onChange={setKcal} suffix="kcal" />
+        </div>
         <Button full onClick={save} disabled={!minutes}>
           Salvar
         </Button>

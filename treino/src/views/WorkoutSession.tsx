@@ -7,8 +7,8 @@ import { doneSets, prsInWorkout, workoutVolume } from '../logic/stats';
 import { fmtKg, localDate, uid } from '../logic/util';
 import { feedbackContext } from '../logic/feedback';
 import { useProfile } from '../store';
-import type { ActiveWorkout, Muscle, Prescription, Questionnaire, SetLog, WorkoutLog } from '../types';
-import { Badge, Button, Card, Chip, Collapsible, Sheet, cx } from '../components/ui';
+import type { ActiveWorkout, Muscle, Prescription, Questionnaire, SetLog, WatchData, WorkoutLog } from '../types';
+import { Badge, Button, Card, Chip, Collapsible, NumberField, Sheet, cx } from '../components/ui';
 
 /* ───────────── som/vibração do fim do descanso ───────────── */
 let audioCtx: AudioContext | null = null;
@@ -44,6 +44,41 @@ function beep() {
 function fmtClock(sec: number) {
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Mantém a tela acesa durante o treino (Screen Wake Lock), para o cronômetro de descanso
+ * continuar visível. O navegador libera o bloqueio ao sair do app; pedimos de novo ao voltar.
+ */
+function useKeepAwake(enabled: boolean) {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const wl = (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void>; addEventListener: (e: string, f: () => void) => void }> } }).wakeLock;
+    if (!enabled || !wl) return;
+    let sentinel: { release: () => Promise<void> } | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const s = await wl.request('screen');
+        if (cancelled) return void s.release();
+        sentinel = s;
+        setActive(true);
+        s.addEventListener('release', () => setActive(false));
+      } catch {
+        setActive(false);
+      }
+    };
+    acquire();
+    document.addEventListener('visibilitychange', acquire);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', acquire);
+      sentinel?.release().catch(() => {});
+      setActive(false);
+    };
+  }, [enabled]);
+  return active;
 }
 
 function useNow(interval = 250) {
@@ -92,6 +127,7 @@ export function WorkoutSession() {
   const [finishing, setFinishing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const now = useNow(1000);
+  const awake = useKeepAwake(!aw.retro && profile.prefs?.keepAwake !== false);
 
   const setAw = (fn: (a: ActiveWorkout) => ActiveWorkout) => update((p) => (p.activeWorkout ? { ...p, activeWorkout: fn(p.activeWorkout) } : p));
   const setExercise = (ei: number, fn: (e: ActiveWorkout['exercises'][number]) => ActiveWorkout['exercises'][number]) =>
@@ -215,6 +251,7 @@ export function WorkoutSession() {
             <div className="text-xs text-slate-400">
               {!aw.retro && `⏱ ${elapsedMin} min · `}
               {completed}/{totalSets} séries{!aw.free && ` · ${aw.deload ? 'Deload' : `RIR ${targetRir}`}`}
+              {awake && ' · ☀️ tela acesa'}
             </div>
           </div>
           <div className="flex gap-2">
@@ -718,6 +755,7 @@ function FinishSheet({ onClose, title }: { onClose: () => void; title: string })
   const today = localDate();
   const [date, setDate] = useState(today);
   const [retroMinutes, setRetroMinutes] = useState(60);
+  const [watch, setWatch] = useState<WatchData>({});
   const volume = workoutVolume(aw);
   const sets = doneSets(aw);
   const prs = prsInWorkout(profile.workouts, aw);
@@ -740,6 +778,7 @@ function FinishSheet({ onClose, title }: { onClose: () => void; title: string })
       cardioDone: aw.cardioDone,
       rpe,
       notes: notes.trim() || undefined,
+      watch: Object.values(watch).some((v) => v != null && v > 0) ? watch : undefined,
     };
     // mantém o histórico em ordem cronológica (registros de dias anteriores)
     update((p) => ({ ...p, workouts: [...p.workouts, log].sort((x, y) => x.finishedAt.localeCompare(y.finishedAt)), activeWorkout: undefined }));
@@ -821,6 +860,14 @@ function FinishSheet({ onClose, title }: { onClose: () => void; title: string })
           </button>
         ))}
       </div>
+      <Collapsible className="mt-4" icon="⌚" title="Dados do relógio (opcional)" subtitle="Copie do resumo do treino no relógio/app de saúde">
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="FC média" suffix="bpm" value={watch.avgHr} onChange={(v) => setWatch((w) => ({ ...w, avgHr: v }))} />
+          <NumberField label="FC máxima" suffix="bpm" value={watch.maxHr} onChange={(v) => setWatch((w) => ({ ...w, maxHr: v }))} />
+          <NumberField label="Calorias ativas" suffix="kcal" value={watch.kcal} onChange={(v) => setWatch((w) => ({ ...w, kcal: v }))} />
+          <NumberField label="Tempo no relógio" suffix="min" value={watch.minutes} onChange={(v) => setWatch((w) => ({ ...w, minutes: v }))} />
+        </div>
+      </Collapsible>
       <p className="mt-2 text-[11px] leading-snug text-slate-500">O app lê o esforço e as observações para ajustar as próximas cargas (dor → segura e reduz nos exercícios da região; cansaço → não sobe; fácil → sobe antes).</p>
       <div className="mt-4 flex gap-2">
         <Button variant="secondary" onClick={onClose}>

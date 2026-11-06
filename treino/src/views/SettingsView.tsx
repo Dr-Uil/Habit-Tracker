@@ -132,6 +132,16 @@ export function SettingsView({ onEdit }: { onEdit: () => void }) {
       </div>
 
       <div>
+        <SectionTitle>Durante o treino</SectionTitle>
+        <OptionCard
+          icon={profile.prefs?.keepAwake !== false ? '✅' : '⬜'}
+          title="Manter a tela acesa durante o treino"
+          desc="A tela não apaga sozinha enquanto o treino estiver aberto, para o cronômetro de descanso ficar visível. Gasta um pouco mais de bateria."
+          onClick={() => update((p) => ({ ...p, prefs: { ...p.prefs, keepAwake: p.prefs?.keepAwake === false } }))}
+        />
+      </div>
+
+      <div>
         <SectionTitle>Zona de perigo</SectionTitle>
         <Button variant="danger" full onClick={() => setConfirmDelete(true)}>
           Excluir perfil “{profile.questionnaire.name}”
