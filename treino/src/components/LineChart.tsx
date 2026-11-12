@@ -100,28 +100,50 @@ export function LineChart({ points, unit = '', height = 160, decimals = 1 }: { p
 }
 
 /** Barras horizontais com faixa-alvo (para volume semanal por músculo). */
-export function TargetBars({ rows }: { rows: { label: string; value: number; target: [number, number]; priority?: boolean }[] }) {
-  const max = Math.max(...rows.map((r) => Math.max(r.value, r.target[1]))) * 1.08;
+export function TargetBars({ rows }: { rows: { label: string; value: number; target: [number, number]; priority?: boolean; done?: number }[] }) {
+  const max = Math.max(...rows.map((r) => Math.max(r.value, r.target[1], r.done ?? 0))) * 1.08;
+  const showDone = rows.some((r) => r.done != null);
+  const fmt = (n: number) => n.toString().replace('.', ',');
   return (
     <div className="space-y-2.5">
+      {showDone && (
+        <div className="flex flex-wrap gap-3 text-[11px] text-slate-400">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-4 rounded-full bg-accent" /> feito nesta semana
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-4 rounded-full bg-accent/30" /> planejado
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-4 rounded-full bg-emerald-400/15 ring-1 ring-emerald-400/30" /> meta
+          </span>
+        </div>
+      )}
       {rows.map((r) => {
         const inRange = r.value >= r.target[0] && r.value <= r.target[1];
         return (
           <div key={r.label}>
-            <div className="mb-1 flex justify-between text-xs">
+            <div className="mb-1 flex justify-between gap-2 text-xs">
               <span className="text-slate-300">
                 {r.label} {r.priority && <span className="text-accent">★</span>}
               </span>
-              <span className={inRange ? 'text-emerald-300' : 'text-amber-300'}>
-                {r.value.toString().replace('.', ',')} séries <span className="text-slate-500">(meta {r.target[0]}–{r.target[1]})</span>
-              </span>
+              {showDone ? (
+                <span className="text-right text-slate-400">
+                  <b className="text-slate-100">{fmt(r.done ?? 0)}</b> de {fmt(r.value)} planejadas <span className="text-slate-500">(meta {r.target[0]}–{r.target[1]})</span>
+                </span>
+              ) : (
+                <span className={inRange ? 'text-emerald-300' : 'text-amber-300'}>
+                  {fmt(r.value)} séries <span className="text-slate-500">(meta {r.target[0]}–{r.target[1]})</span>
+                </span>
+              )}
             </div>
             <div className="relative h-2.5 rounded-full bg-slate-800">
               <div
                 className="absolute top-0 h-full rounded-full bg-emerald-400/15 ring-1 ring-emerald-400/30"
                 style={{ left: `${(r.target[0] / max) * 100}%`, width: `${((r.target[1] - r.target[0]) / max) * 100}%` }}
               />
-              <div className="absolute top-0 h-full rounded-full bg-accent" style={{ width: `${(r.value / max) * 100}%`, opacity: 0.85 }} />
+              <div className="absolute top-0 h-full rounded-full bg-accent" style={{ width: `${(r.value / max) * 100}%`, opacity: showDone ? 0.3 : 0.85 }} />
+              {showDone && <div className="absolute top-0 h-full rounded-full bg-accent" style={{ width: `${((r.done ?? 0) / max) * 100}%` }} />}
             </div>
           </div>
         );
