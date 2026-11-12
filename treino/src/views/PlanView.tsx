@@ -3,6 +3,7 @@ import { ALL_MUSCLES, getExercise, MUSCLE_LABEL } from '../data/exercises';
 import { timingTips } from '../data/science';
 import { CARDIO_MODE_LABEL, groupExercises } from '../logic/generator';
 import { blockInfo } from '../logic/progression';
+import { weeklySetsHistory, workoutsInWeek } from '../logic/stats';
 import { useProfile } from '../store';
 import { Badge, Button, Card, Collapsible, SectionTitle, Sheet, cx } from '../components/ui';
 import { TargetBars } from '../components/LineChart';
@@ -23,6 +24,9 @@ export function PlanView({ onEdit }: { onEdit: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const [infoEx, setInfoEx] = useState<string | null>(null);
   const hr = p.hrMax;
+  const thisWeek = weeklySetsHistory(profile, 1)[0];
+  const weekDone = workoutsInWeek(profile);
+  const weekSets = thisWeek.sets;
 
   return (
     <div className="space-y-4">
@@ -134,17 +138,18 @@ export function PlanView({ onEdit }: { onEdit: () => void }) {
             concluídos — se uma semana for corrida, o plano espera por você.
           </p>
         </Collapsible>
-        <Collapsible icon="📊" title="Volume semanal por músculo">
+        <Collapsible icon="📊" title="Volume semanal por músculo" subtitle={`Nesta semana: ${weekDone.length} treino(s), ${weekSets} séries feitas`}>
           <TargetBars
             rows={ALL_MUSCLES.map((mu) => ({
               label: MUSCLE_LABEL[mu],
               value: Math.round((p.weeklyVolume[mu] ?? 0) * 10) / 10,
               target: p.volumeTarget[mu],
               priority: q.priorityMuscles.includes(mu),
+              done: Math.round((thisWeek.byMuscle[mu] ?? 0) * 10) / 10,
             }))}
           />
           <p className="mt-3 text-xs leading-relaxed text-slate-500">
-            Séries “duras” por semana (o músculo secundário conta meia série). A faixa verde é a meta baseada na literatura para o seu nível; com pouco tempo,
+            Conta os treinos salvos de segunda a domingo desta semana, inclusive os avulsos e os registrados depois. Séries “duras” por semana (o músculo secundário conta meia série). A faixa verde é a meta baseada na literatura para o seu nível; com pouco tempo,
             ficar um pouco abaixo ainda gera ótimos resultados.
           </p>
         </Collapsible>
